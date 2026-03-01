@@ -1,16 +1,8 @@
 /**
- * StroopTest — Executive Function — Fixed v2
- *
- * Bugs fixed:
- * 1. trialStart.current was NOT being reset at the start of each new trial's
- *    stimulus display — it was only set once in startTest(). This caused every
- *    trial after the first to have a massively inflated RT (measured from the
- *    start of the previous trial, not the current one).
- *    Fix: reset trialStart inside a useEffect that fires whenever `idx` changes
- *    while phase === "trial", so the clock starts exactly when the stimulus appears.
- *
- * 2. setStroopData was using stale `results` state when called at end of final
- *    trial. Fixed by always using `newRes` (the locally built array) instead.
+ * StroopTest — Executive Function
+ * Show a color word printed in a DIFFERENT ink color.
+ * User must click the INK COLOR, not the word.
+ * 12 trials: 4 congruent (warm-up) + 8 incongruent (scored).
  */
 import { useState, useRef, useEffect } from "react";
 import { T } from "../utils/theme";
@@ -25,8 +17,8 @@ const COLORS = [
 ];
 
 function makeTrial(congruent) {
-  const word = COLORS[Math.floor(Math.random() * COLORS.length)];
-  let   ink  = word;
+  const word  = COLORS[Math.floor(Math.random() * COLORS.length)];
+  let   ink   = word;
   if (!congruent) {
     const others = COLORS.filter(c => c.name !== word.name);
     ink = others[Math.floor(Math.random() * others.length)];
@@ -42,85 +34,53 @@ function buildTrials() {
 
 export default function StroopTest({ setPage }) {
   const { setStroopData } = useAssessment();
-
-  const [phase,   setPhase]   = useState("intro");   // intro | trial | result
-  const [trials]              = useState(buildTrials);
-  const [idx,     setIdx]     = useState(0);
-  const [results, setResults] = useState([]);
-
-  const trialStart = useRef(null);
-
-  // ── KEY FIX: Reset the clock whenever the stimulus changes ────────────────
-  // This fires after React renders the new trial stimulus (new idx value),
-  // so RT is measured from when the user actually sees the word — not from
-  // when the previous handleChoice() ran.
-  useEffect(() => {
-    if (phase === "trial") {
-      trialStart.current = Date.now();
-    }
-  }, [idx, phase]);
+  const [phase, setPhase]       = useState("intro");   // intro | trial | result
+  const [trials]                = useState(buildTrials);
+  const [idx, setIdx]           = useState(0);
+  const [results, setResults]   = useState([]);
+  const trialStart              = useRef(null);
 
   const trial = trials[idx];
 
-  function startTest() {
-    setPhase("trial");
-    // trialStart will be set by the useEffect above on first render of phase=trial
-  }
+  function startTest() { setPhase("trial"); trialStart.current = Date.now(); }
 
   function handleChoice(colorName) {
-    const rt      = Date.now() - (trialStart.current ?? Date.now());
+    const rt      = Date.now() - trialStart.current;
     const correct = colorName === trial.inkName;
-    // Build newRes from current results + this trial — never rely on stale state
     const newRes  = [...results, { ...trial, chosen: colorName, correct, rt }];
     setResults(newRes);
 
-    const isLastTrial = idx + 1 >= trials.length;
-
-    if (isLastTrial) {
-      // Score only incongruent trials (idx >= 4 = trials 5–12)
+    if (idx + 1 >= trials.length) {
+      // Only score incongruent trials
       const incongruent = newRes.filter(r => !r.congruent);
       const errors      = incongruent.filter(r => !r.correct).length;
       const rts         = incongruent.map(r => r.rt);
       const meanRt      = rts.length ? rts.reduce((a, b) => a + b, 0) / rts.length : 600;
 
-      // Commit to context using newRes data (never stale)
       setStroopData({
-        total_trials:   incongruent.length,
-        error_count:    errors,
-        mean_rt:        Math.round(meanRt),
-        incongruent_rt: Math.round(meanRt),
+        total_trials:    incongruent.length,
+        error_count:     errors,
+        mean_rt:         Math.round(meanRt),
+        incongruent_rt:  Math.round(meanRt),
       });
       setPhase("result");
     } else {
-      // Advance to next trial — useEffect will reset trialStart on new idx render
       setIdx(i => i + 1);
+      trialStart.current = Date.now();
     }
   }
 
-  // ── Display metrics ────────────────────────────────────────────────────────
   const incongruent = results.filter(r => !r.congruent);
   const errors      = incongruent.filter(r => !r.correct).length;
-  const accuracy    = incongruent.length > 0
-    ? Math.round(((incongruent.length - errors) / incongruent.length) * 100)
-    : 100;
-  const avgRt = incongruent.length > 0
-    ? Math.round(incongruent.reduce((a, r) => a + r.rt, 0) / incongruent.length)
-    : 0;
+  const accuracy    = incongruent.length > 0 ? Math.round(((incongruent.length - errors) / incongruent.length) * 100) : 100;
+  const avgRt       = incongruent.length > 0 ? Math.round(incongruent.reduce((a, r) => a + r.rt, 0) / incongruent.length) : 0;
 
   return (
     <div>
-      <button
-        onClick={() => setPage("assessments")}
-        style={{ background: "none", border: "none", color: T.creamFaint, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontSize: 13, marginBottom: 24 }}
-      >
-        ← Back
-      </button>
+      <button onClick={() => setPage("assessments")} style={{ background: "none", border: "none", color: T.creamFaint, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontSize: 13, marginBottom: 24 }}>← Back</button>
       <h1 style={{ fontFamily: "'Instrument Serif',serif", fontSize: 36, color: T.cream, letterSpacing: -1, marginBottom: 6 }}>Stroop Test</h1>
-      <p style={{ color: T.creamFaint, fontSize: 14, marginBottom: 32 }}>
-        Click the <strong style={{ color: T.cream }}>color of the ink</strong>, not what the word says. Executive function test.
-      </p>
+      <p style={{ color: T.creamFaint, fontSize: 14, marginBottom: 32 }}>Click the <strong style={{ color: T.cream }}>color of the ink</strong>, not what the word says. Executive function test.</p>
 
-      {/* ── Intro ── */}
       {phase === "intro" && (
         <DarkCard style={{ padding: 40, maxWidth: 520, textAlign: "center" }} hover={false}>
           <div style={{ fontSize: 64, marginBottom: 20 }}>🧠</div>
@@ -135,7 +95,6 @@ export default function StroopTest({ setPage }) {
         </DarkCard>
       )}
 
-      {/* ── Trial ── */}
       {phase === "trial" && trial && (
         <DarkCard style={{ padding: 48, maxWidth: 560, textAlign: "center" }} hover={false}>
           <div style={{ fontSize: 11, color: T.creamFaint, letterSpacing: 1, textTransform: "uppercase", marginBottom: 32 }}>
@@ -143,12 +102,14 @@ export default function StroopTest({ setPage }) {
             {idx >= 4 && <span style={{ color: T.amber, marginLeft: 8 }}>• Scored</span>}
           </div>
 
-          {/* Stroop stimulus */}
+          {/* The Stroop stimulus */}
           <div style={{
             fontFamily: "'Instrument Serif',serif",
-            fontSize: 72, fontWeight: 700,
+            fontSize: 72,
+            fontWeight: 700,
             color: trial.inkColor,
-            letterSpacing: 4, marginBottom: 48,
+            letterSpacing: 4,
+            marginBottom: 48,
             textShadow: `0 0 30px ${trial.inkColor}44`,
             userSelect: "none",
           }}>
@@ -158,18 +119,21 @@ export default function StroopTest({ setPage }) {
           {/* Color choice buttons */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             {COLORS.map(c => (
-              <button
-                key={c.name}
-                onClick={() => handleChoice(c.name)}
-                style={{
-                  padding: "16px 24px", borderRadius: 14,
-                  border: `2px solid ${c.hex}44`, background: `${c.hex}12`,
-                  color: c.hex, fontWeight: 700, fontSize: 16,
-                  cursor: "pointer", fontFamily: "'DM Sans',sans-serif",
-                  transition: "all 0.15s", letterSpacing: 1,
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = `${c.hex}25`; e.currentTarget.style.borderColor = c.hex; }}
-                onMouseLeave={e => { e.currentTarget.style.background = `${c.hex}12`; e.currentTarget.style.borderColor = `${c.hex}44`; }}
+              <button key={c.name} onClick={() => handleChoice(c.name)} style={{
+                padding: "16px 24px",
+                borderRadius: 14,
+                border: `2px solid ${c.hex}44`,
+                background: `${c.hex}12`,
+                color: c.hex,
+                fontWeight: 700,
+                fontSize: 16,
+                cursor: "pointer",
+                fontFamily: "'DM Sans',sans-serif",
+                transition: "all 0.15s",
+                letterSpacing: 1,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = `${c.hex}25`; e.currentTarget.style.borderColor = c.hex; }}
+              onMouseLeave={e => { e.currentTarget.style.background = `${c.hex}12`; e.currentTarget.style.borderColor = `${c.hex}44`; }}
               >
                 {c.name}
               </button>
@@ -178,17 +142,16 @@ export default function StroopTest({ setPage }) {
         </DarkCard>
       )}
 
-      {/* ── Result ── */}
       {phase === "result" && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
           <DarkCard style={{ padding: 36 }} hover={false}>
             <div style={{ fontSize: 11, color: T.creamFaint, letterSpacing: 1, textTransform: "uppercase", marginBottom: 24 }}>Stroop Results</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
               {[
-                { label: "Accuracy",      v: `${accuracy}%`,    c: accuracy >= 80 ? T.green : accuracy >= 60 ? T.amber : T.red },
-                { label: "Avg RT",        v: `${avgRt}ms`,      c: avgRt < 600 ? T.green : T.amber },
-                { label: "Errors",        v: errors,             c: errors === 0 ? T.green : errors <= 2 ? T.amber : T.red },
-                { label: "Trials Scored", v: incongruent.length, c: T.cream },
+                { label: "Accuracy",      v: `${accuracy}%`,     c: accuracy >= 80 ? T.green : accuracy >= 60 ? T.amber : T.red },
+                { label: "Avg RT",        v: `${avgRt}ms`,       c: avgRt < 600 ? T.green : T.amber },
+                { label: "Errors",        v: errors,              c: errors === 0 ? T.green : errors <= 2 ? T.amber : T.red },
+                { label: "Trials Scored", v: incongruent.length,  c: T.cream },
               ].map(m => (
                 <div key={m.label} style={{ background: T.bg3, borderRadius: 12, padding: 16 }}>
                   <div style={{ fontSize: 11, color: T.creamFaint, marginBottom: 4 }}>{m.label}</div>
@@ -201,7 +164,6 @@ export default function StroopTest({ setPage }) {
               <div style={{ color: T.creamFaint, fontSize: 13, lineHeight: 1.65 }}>Stroop interference measures inhibitory control and executive function.</div>
             </div>
           </DarkCard>
-
           <DarkCard style={{ padding: 28 }} hover={false}>
             <div style={{ fontSize: 11, color: T.creamFaint, letterSpacing: 1, textTransform: "uppercase", marginBottom: 16 }}>Trial Log</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 340, overflowY: "auto" }}>
@@ -214,9 +176,7 @@ export default function StroopTest({ setPage }) {
               ))}
             </div>
             <div style={{ marginTop: 16 }}>
-              <Btn onClick={() => setPage("assessments")} style={{ width: "100%", justifyContent: "center" }}>
-                ← Back to Tests
-              </Btn>
+              <Btn onClick={() => setPage("assessments")} style={{ width: "100%", justifyContent: "center" }}>← Back to Tests</Btn>
             </div>
           </DarkCard>
         </div>

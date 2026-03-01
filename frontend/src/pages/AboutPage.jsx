@@ -5,7 +5,7 @@ export default function AboutPage({ setView }) {
   return (
     <div style={{ background: T.bg, color: T.cream, fontFamily: "'DM Sans',sans-serif", minHeight: "100vh" }}>
       <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 60px", borderBottom: `1px solid ${T.cardBorder}`, background: "rgba(10,10,10,0.9)", backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 50 }}>
-        <button onClick={() => setView("landing")} style={{ background: "none", border: "none", fontFamily: "'Instrument Serif',serif", fontSize: 20, color: T.cream, cursor: "pointer" }}>NeuroAid</button>
+        <button onClick={() => setView("landing")} style={{ background: "none", border: "none", fontFamily: "'Instrument Serif',serif", fontSize: 20, color: T.cream, cursor: "pointer" }}>MindSaathi</button>
         <Btn small onClick={() => setView("login")}>Get Started →</Btn>
       </nav>
       <div style={{ maxWidth: 760, margin: "0 auto", padding: "80px 40px" }}>
@@ -31,3 +31,5 @@ export default function AboutPage({ setView }) {
     </div>
   );
 }
+
+

@@ -3,261 +3,163 @@ import { T } from "../utils/theme";
 import { DarkCard, Btn } from "../components/RiskDashboard";
 import { useAssessment } from "../context/AssessmentContext";
 import { submitAnalysis } from "../services/api";
-import { collection, addDoc } from "firebase/firestore";
-import { db } from "../firebase";
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+const LIME = "#C8F135";
 
-/**
- * Maps the flat medicalHistory string array from ProfileSetup
- * into the structured MedicalConditions object the backend expects.
- *
- * ProfileSetup stores conditions as an array of strings, e.g.:
- *   ["diabetes", "hypertension", "stroke_history", ...]
- */
-function buildMedicalConditions(medicalHistory = []) {
-  const h = (medicalHistory || []).map(s => s.toLowerCase().replace(/\s+/g, "_"));
-  return {
-    diabetes:          h.includes("diabetes"),
-    hypertension:      h.includes("hypertension"),
-    stroke_history:    h.includes("stroke_history") || h.includes("stroke"),
-    family_alzheimers: h.includes("family_alzheimers") || h.includes("family_history_alzheimers"),
-    parkinsons_dx:     h.includes("parkinsons_dx") || h.includes("parkinsons") || h.includes("parkinson"),
-    depression:        h.includes("depression"),
-    thyroid_disorder:  h.includes("thyroid_disorder") || h.includes("thyroid"),
-  };
-}
-
-/**
- * Maps profile sleep data into the FatigueFlags object.
- * Users who slept < 5 hours are flagged as sleep_deprived.
- * "poor" sleep quality is flagged as tired.
- */
-function buildFatigueFlags(profile = {}) {
-  const sleepHours   = parseFloat(profile?.sleepHours) || null;
-  const sleepQuality = profile?.sleepQuality || "normal";
-  return {
-    tired:          sleepQuality === "poor",
-    sleep_deprived: sleepHours !== null && sleepHours < 5,
-    sick:           false,   // Not collected in ProfileSetup — defaults to false
-    anxious:        false,   // Not collected in ProfileSetup — defaults to false
-  };
-}
-
-// ── Component ──────────────────────────────────────────────────────────────────
-
-export default function AssessmentHub({ setPage, user }) {
+export default function AssessmentHub({ setPage }) {
   const {
     speechData, memoryData, reactionData, stroopData, tapData,
-    fluencyData, digitSpanData,
     setApiResult, setLoading, setError, loading, error, completedCount,
-    profile,
   } = useAssessment();
 
   const tests = [
-    { id: "speech",    icon: "🎙️", title: "Speech Analysis",  desc: "Passage reading — WPM, pauses, rhythm variability.",    dur: "~2 min", accent: T.red,     done: !!speechData,    required: true },
-    { id: "memory",    icon: "🧠", title: "Memory Recall",     desc: "Recall + delayed recall. Latency, order, intrusions.", dur: "~3 min", accent: T.green,   done: !!memoryData,    required: true },
-    { id: "reaction",  icon: "⚡", title: "Reaction Time",     desc: "Speed, drift, misses. Sustained attention signal.",    dur: "~2 min", accent: T.blue,    done: !!reactionData,  required: true },
-    { id: "stroop",    icon: "🎨", title: "Stroop Test",       desc: "Color-word interference. Executive function signal.",  dur: "~2 min", accent: "#a78bfa", done: !!stroopData,    required: true },
-    { id: "tap",       icon: "🥁", title: "Motor Tap Test",    desc: "10-second rapid tapping. Rhythmic motor control.",     dur: "~1 min", accent: T.amber,   done: !!tapData,       required: true },
-    { id: "fluency",   icon: "🦁", title: "Word Fluency",      desc: "Name as many animals as possible in 30 seconds.",     dur: "~1 min", accent: "#f472b6", done: !!fluencyData,   required: false },
-    { id: "digitspan", icon: "🔢", title: "Working Memory",    desc: "Digit span — repeat number sequences forward.",       dur: "~2 min", accent: "#67e8f9", done: !!digitSpanData, required: false },
+    { id:"speech",   icon:"🎙️", title:"Speech Analysis",  desc:"Passage reading — WPM, pauses, rhythm variability.",    dur:"~2 min", accent:LIME,      done:!!speechData   },
+    { id:"memory",   icon:"🧠", title:"Memory Test",       desc:"Recall + delayed recall. Latency, order, intrusions.",  dur:"~3 min", accent:"#60a5fa", done:!!memoryData   },
+    { id:"reaction", icon:"⚡", title:"Reaction Time",     desc:"Speed, drift, misses. Sustained attention signal.",     dur:"~2 min", accent:"#f59e0b", done:!!reactionData },
+    { id:"stroop",   icon:"🎨", title:"Stroop Test",       desc:"Color-word interference. Executive function signal.",   dur:"~2 min", accent:"#a78bfa", done:!!stroopData   },
+    { id:"tap",      icon:"🥁", title:"Motor Tap Test",    desc:"10-second rapid tapping. Rhythmic motor control.",      dur:"~1 min", accent:"#fb923c", done:!!tapData      },
   ];
 
-  const requiredDone = [speechData, memoryData, reactionData, stroopData, tapData].filter(Boolean).length;
-  const totalDone    = completedCount;
-  const allRequired  = requiredDone >= 5;
-
   async function handleSubmit() {
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
+
+    // ── Data quality guard ────────────────────────────────────────────────
+    const warnings = [];
+    if (speechData && speechData.wpm === 0) {
+      warnings.push("Speech test: no words detected — try re-recording with microphone enabled.");
+    }
+    if (reactionData && reactionData.times.length > 0) {
+      const allMisses = reactionData.times.every(t => t >= 3000);
+      if (allMisses) warnings.push("Reaction test: all rounds timed out — your score will be very low. Consider retaking.");
+    }
+    if (warnings.length > 0) {
+      // Show warnings but don't block — let user proceed
+      setError("⚠️ Data quality notice: " + warnings.join(" | ") + " You can still submit or retake the affected test.");
+      setLoading(false);
+      // Don't return — allow submit after user sees warning (they already clicked once)
+      // On second click (loading was reset), clear warning and proceed
+    }
+
     try {
-      // ── Build medical_conditions from profile.medicalHistory array ─────────
-      const medicalConditions = buildMedicalConditions(profile?.medicalHistory);
-
-      // ── Build fatigue_flags from profile sleep data ────────────────────────
-      const fatigueFlags = buildFatigueFlags(profile);
-
       const payload = {
-        speech_audio:   speechData?.audio_b64 || null,
+        speech_audio: speechData?.audio_b64 || null,
         memory_results: {
           word_recall_accuracy: memoryData?.word_recall_accuracy ?? 50,
           pattern_accuracy:     memoryData?.pattern_accuracy     ?? 50,
         },
         reaction_times: reactionData?.times ?? [],
-        speech: speechData ? {
-          wpm:                      speechData.wpm,
-          speed_deviation:          speechData.speed_deviation,
-          speech_speed_variability: speechData.speech_speed_variability,
-          pause_ratio:              speechData.pause_ratio,
-          completion_ratio:         speechData.completion_ratio,
-          restart_count:            speechData.restart_count,
-          speech_start_delay:       speechData.speech_start_delay,
-        } : null,
-        memory: memoryData ? {
-          word_recall_accuracy:    memoryData.word_recall_accuracy,
-          pattern_accuracy:        memoryData.pattern_accuracy,
-          delayed_recall_accuracy: memoryData.delayed_recall_accuracy,
-          recall_latency_seconds:  memoryData.recall_latency_seconds,
-          order_match_ratio:       memoryData.order_match_ratio,
-          intrusion_count:         memoryData.intrusion_count,
-        } : null,
-        reaction: reactionData ? {
-          times:      reactionData.times,
-          miss_count: reactionData.miss_count,
-        } : null,
-        stroop: stroopData ? {
-          total_trials:   stroopData.total_trials,
-          error_count:    stroopData.error_count,
-          mean_rt:        stroopData.mean_rt,
-          incongruent_rt: stroopData.incongruent_rt,
-        } : null,
-        tap: tapData ? {
-          intervals:  tapData.intervals,
-          tap_count:  tapData.tap_count,
-        } : null,
-        profile: profile ? {
-          age:                parseInt(profile.age, 10) || null,
-          education_level:    parseInt(profile.education, 10) || null,
-          sleep_hours:        parseFloat(profile.sleepHours) || null,
-          family_history:     profile.familyHistory || false,
-          existing_diagnosis: profile.existingDiagnosis || false,
-          sleep_quality:      profile.sleepQuality || "normal",
-          // ✅ NEW: Medical condition flags (Layer 3 — risk multipliers)
-          medical_conditions: medicalConditions,
-          // ✅ NEW: Fatigue flags (Layer 4 — confidence scoring)
-          fatigue_flags:      fatigueFlags,
-        } : null,
-        fluency:    fluencyData    || null,
-        digit_span: digitSpanData  || null,
+        speech:   speechData  ? { wpm:speechData.wpm, speed_deviation:speechData.speed_deviation, speech_speed_variability:speechData.speech_speed_variability, pause_ratio:speechData.pause_ratio, completion_ratio:speechData.completion_ratio, restart_count:speechData.restart_count, speech_start_delay:speechData.speech_start_delay } : null,
+        memory:   memoryData  ? { word_recall_accuracy:memoryData.word_recall_accuracy, pattern_accuracy:memoryData.pattern_accuracy, delayed_recall_accuracy:memoryData.delayed_recall_accuracy, recall_latency_seconds:memoryData.recall_latency_seconds, order_match_ratio:memoryData.order_match_ratio, intrusion_count:memoryData.intrusion_count } : null,
+        reaction: reactionData? { times:reactionData.times, miss_count:reactionData.miss_count, initiation_delay:reactionData.initiation_delay ?? null } : null,
+        stroop:   stroopData  ? { total_trials:stroopData.total_trials, error_count:stroopData.error_count, mean_rt:stroopData.mean_rt, incongruent_rt:stroopData.incongruent_rt } : null,
+        tap:      tapData     ? { intervals:tapData.intervals, tap_count:tapData.tap_count } : null,
       };
-
-      console.log("[AssessmentHub] Submitting payload:", {
-        ...payload,
-        speech_audio: payload.speech_audio ? `[${payload.speech_audio.length} chars]` : null,
-      });
       const result = await submitAnalysis(payload);
       setApiResult(result);
-
-      // ── Save assessment to Firestore ───────────────────────────────────────
-      if (user?.uid && user.uid !== "guest") {
-        try {
-          await addDoc(collection(db, "assessments"), {
-            uid:                       user.uid,
-            createdAt:                 new Date().toISOString(),
-            speech_score:              result.speech_score,
-            memory_score:              result.memory_score,
-            reaction_score:            result.reaction_score,
-            executive_score:           result.executive_score,
-            motor_score:               result.motor_score,
-            adjusted_memory_score:     result.adjusted_memory_score     ?? null,
-            composite_risk_score:      result.composite_risk_score,
-            composite_risk_level:      result.composite_risk_level,
-            composite_risk_tier:       result.composite_risk_level,
-            // ✅ NEW: Logistic probability fields
-            logistic_risk_probability: result.logistic_risk_probability ?? null,
-            logistic_risk_level:       result.logistic_risk_level       ?? null,
-            // ✅ NEW: Confidence / fatigue fields
-            confidence_score:          result.confidence_score          ?? null,
-            recommend_retest:          result.recommend_retest          ?? null,
-            alzheimers_risk:           result.alzheimers_risk,
-            dementia_risk:             result.dementia_risk,
-            parkinsons_risk:           result.parkinsons_risk,
-            risk_levels:               result.risk_levels,
-            fluency_word_count:        fluencyData?.word_count          ?? null,
-            digit_max_span:            digitSpanData?.max_forward_span  ?? null,
-          });
-        } catch (fsErr) {
-          console.warn("Firestore save failed (non-critical):", fsErr.message);
-        }
-      }
-
       setPage("results");
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
   }
+
+  const allDone = completedCount >= 5;
 
   return (
     <div>
-      <div style={{ marginBottom: 36 }}>
-        <h1 style={{ fontFamily: "'Instrument Serif',serif", fontSize: 36, fontWeight: 400, color: T.cream, letterSpacing: -1, marginBottom: 6 }}>Assessment Hub</h1>
-        <p style={{ color: T.creamFaint, fontSize: 14 }}>Complete all 5 core tests to generate disease-specific risk scores. Bonus tests improve accuracy.</p>
-      </div>
-
-      {/* Progress */}
-      <DarkCard style={{ padding: 20, marginBottom: 24 }} hover={false}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <span style={{ fontSize: 13, color: T.creamDim, fontWeight: 600 }}>Session Progress</span>
-          <span style={{ fontSize: 12, color: T.creamFaint }}>{totalDone} / 7 completed ({requiredDone}/5 required)</span>
+      {/* ── Header ── */}
+      <div style={{ marginBottom:36 }}>
+        <div style={{ display:"inline-flex", alignItems:"center", gap:8, background:`rgba(200,241,53,0.10)`, border:`1px solid ${LIME}33`, borderRadius:99, padding:"5px 14px", marginBottom:14, fontSize:11, fontWeight:700, color:LIME, letterSpacing:1.5, textTransform:"uppercase" }}>
+          <span style={{ width:5, height:5, borderRadius:"50%", background:LIME, display:"inline-block", animation:"pulse-dot 2s infinite" }} />
+          Cognitive Assessment
         </div>
-        <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.08)" }}>
-          <div style={{ height: "100%", width: `${(totalDone / 7) * 100}%`, background: `linear-gradient(90deg,${T.red},#a78bfa,${T.green})`, borderRadius: 3, transition: "width 0.5s ease" }} />
-        </div>
-      </DarkCard>
-
-      {/* Core Tests */}
-      <div style={{ fontSize: 11, color: T.creamFaint, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 12 }}>Core Tests (Required)</div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 16 }}>
-        {tests.slice(0, 3).map(t => <TestCard key={t.id} t={t} setPage={setPage} loading={loading} />)}
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 28 }}>
-        {tests.slice(3, 5).map(t => <TestCard key={t.id} t={t} setPage={setPage} loading={loading} />)}
-      </div>
-
-      {/* Bonus Tests */}
-      <div style={{ fontSize: 11, color: T.creamFaint, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 12 }}>Bonus Tests (Optional — improves accuracy)</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 28 }}>
-        {tests.slice(5).map(t => <TestCard key={t.id} t={t} setPage={setPage} loading={loading} />)}
-      </div>
-
-      {/* Disclaimer */}
-      <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 14, padding: "14px 20px", marginBottom: 20, display: "flex", gap: 12, alignItems: "flex-start" }}>
-        <span style={{ fontSize: 18 }}>⚠️</span>
-        <p style={{ color: T.amber, fontSize: 13, lineHeight: 1.65 }}>
-          <strong>Screening tool only.</strong> This assessment measures behavioral signals only and is NOT a medical diagnosis. Always consult a qualified neurologist for clinical evaluation.
+        <h1 style={{ fontFamily:"'DM Sans',sans-serif", fontWeight:900, fontSize:"clamp(28px,3.5vw,48px)", color:"#fff", letterSpacing:"-1.5px", lineHeight:1.1, marginBottom:8 }}>
+          Assessment <span style={{ color:LIME }}>Hub.</span>
+        </h1>
+        <p style={{ color:"#555", fontSize:14, fontWeight:500 }}>
+          Complete all 5 tests to generate your neural pattern analysis and cognitive domain performance scores.
         </p>
       </div>
 
-      {/* Error */}
+      {/* ── Progress card ── */}
+      <DarkCard style={{ padding:24, marginBottom:24 }} hover={false}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+          <span style={{ fontSize:13, color:"#888", fontWeight:700, letterSpacing:0.5 }}>Session Progress</span>
+          <span style={{ fontSize:13, fontWeight:900, color:completedCount===5 ? LIME : "#fff" }}>
+            {completedCount} <span style={{ color:"#444", fontWeight:400 }}>/ 5</span>
+          </span>
+        </div>
+        <div style={{ height:4, borderRadius:2, background:"rgba(255,255,255,0.07)", overflow:"hidden" }}>
+          <div style={{
+            height:"100%",
+            width:`${(completedCount/5)*100}%`,
+            background:`linear-gradient(90deg,${LIME},#9ABF28)`,
+            borderRadius:2, transition:"width 0.6s ease",
+            boxShadow:`0 0 12px ${LIME}55`,
+          }} />
+        </div>
+        {completedCount === 5 && (
+          <div style={{ marginTop:10, fontSize:12, color:LIME, fontWeight:700, letterSpacing:0.5 }}>
+            ✓ All tests complete — ready to submit
+          </div>
+        )}
+      </DarkCard>
+
+      {/* ── Test grid ── */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16, marginBottom:16 }}>
+        {tests.slice(0,3).map(t => <TestCard key={t.id} t={t} setPage={setPage} loading={loading} />)}
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:24 }}>
+        {tests.slice(3).map(t => <TestCard key={t.id} t={t} setPage={setPage} loading={loading} />)}
+      </div>
+
+      {/* ── Disclaimer ── */}
+      <div style={{ background:"rgba(245,158,11,0.07)", border:"1px solid rgba(245,158,11,0.18)", borderRadius:14, padding:"14px 20px", marginBottom:20, display:"flex", gap:12, alignItems:"flex-start" }}>
+        <span style={{ fontSize:16, flexShrink:0 }}>⚠️</span>
+        <p style={{ color:"#f59e0b", fontSize:13, lineHeight:1.65, fontWeight:500 }}>
+          <strong>Screening tool only.</strong> NOT a medical diagnosis. Always consult a qualified neurologist for clinical evaluation.
+        </p>
+      </div>
+
+      {/* ── Error ── */}
       {error && (
-        <div style={{ background: "rgba(232,64,64,0.1)", border: "1px solid rgba(232,64,64,0.3)", borderRadius: 12, padding: 16, marginBottom: 16, color: T.red, fontSize: 13 }}>
+        <div style={{ background:"rgba(232,64,64,0.08)", border:"1px solid rgba(232,64,64,0.25)", borderRadius:12, padding:16, marginBottom:16, color:"#ff7070", fontSize:13 }}>
           ⚠️ {error}
-          <br /><span style={{ fontSize: 11, color: T.creamFaint }}>Ensure backend is running at <code>localhost:8000</code> or set VITE_API_URL in your .env</span>
         </div>
       )}
 
       <Btn
         onClick={handleSubmit}
-        disabled={!allRequired || loading}
-        style={{ opacity: !allRequired || loading ? 0.4 : 1, cursor: !allRequired || loading ? "not-allowed" : "pointer" }}
+        disabled={!allDone || loading}
+        style={{ fontSize:15, padding:"13px 28px" }}
       >
-        {loading ? "⏳ Analyzing features…" : !allRequired ? `Complete ${5 - requiredDone} more core test${5 - requiredDone > 1 ? "s" : ""}` : "🧠 Submit & Get Risk Analysis →"}
+        {loading ? "⏳ Analyzing 18 features…" : !allDone ? `Complete ${5-completedCount} more test${5-completedCount>1?"s":""}` : "🧠 Submit & Get Neural Pattern Analysis →"}
       </Btn>
     </div>
   );
 }
 
 function TestCard({ t, setPage, loading }) {
+  const [hov, setHov] = useState(false);
   return (
     <DarkCard
-      style={{ padding: 24, position: "relative", opacity: loading ? 0.6 : 1, border: t.done ? `1px solid rgba(74,222,128,0.2)` : undefined }}
+      style={{ padding:24, position:"relative", opacity:loading ? 0.6:1 }}
       onClick={loading ? undefined : () => setPage(t.id)}
+      hover={!loading}
     >
       {t.done && (
-        <div style={{ position: "absolute", top: 14, right: 14, background: "rgba(74,222,128,0.15)", border: "1px solid rgba(74,222,128,0.3)", borderRadius: 8, padding: "3px 10px", fontSize: 11, color: T.green, fontWeight: 700 }}>✓ Done</div>
+        <div style={{ position:"absolute", top:14, right:14, background:`rgba(200,241,53,0.12)`, border:`1px solid ${LIME}44`, borderRadius:8, padding:"3px 10px", fontSize:10, color:LIME, fontWeight:700, letterSpacing:0.5 }}>
+          ✓ DONE
+        </div>
       )}
-      {!t.required && !t.done && (
-        <div style={{ position: "absolute", top: 14, right: 14, background: "rgba(255,255,255,0.05)", border: `1px solid ${T.cardBorder}`, borderRadius: 8, padding: "3px 10px", fontSize: 10, color: T.creamFaint }}>Optional</div>
-      )}
-      <div style={{ width: 48, height: 48, borderRadius: 12, background: `${t.accent}18`, border: `1px solid ${t.accent}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, marginBottom: 16 }}>{t.icon}</div>
-      <div style={{ fontWeight: 700, color: T.cream, fontSize: 16, marginBottom: 6 }}>{t.title}</div>
-      <div style={{ color: T.creamFaint, fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>{t.desc}</div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${T.cardBorder}`, paddingTop: 14 }}>
-        <span style={{ fontSize: 12, color: T.creamFaint }}>⏱ {t.dur}</span>
-        <span style={{ fontSize: 12, color: t.done ? T.green : t.accent, fontWeight: 600 }}>{t.done ? "Redo →" : "Start →"}</span>
+      <div style={{ width:46, height:46, borderRadius:12, background:`${t.accent}14`, border:`1px solid ${t.accent}2A`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, marginBottom:16 }}>
+        {t.icon}
+      </div>
+      <div style={{ fontFamily:"'DM Sans',sans-serif", fontWeight:900, color:"#fff", fontSize:16, marginBottom:6, letterSpacing:"-0.3px" }}>{t.title}</div>
+      <div style={{ color:"#555", fontSize:13, lineHeight:1.6, marginBottom:16 }}>{t.desc}</div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", borderTop:`1px solid rgba(255,255,255,0.07)`, paddingTop:14 }}>
+        <span style={{ fontSize:11, color:"#444", fontWeight:600, letterSpacing:0.5 }}>⏱ {t.dur}</span>
+        <span style={{ fontSize:12, color:t.done ? LIME : t.accent, fontWeight:700 }}>
+          {t.done ? "Redo →" : "Start →"}
+        </span>
       </div>
     </DarkCard>
   );

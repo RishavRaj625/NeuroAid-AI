@@ -1,195 +1,215 @@
-/**
- * MemoryTest — Fixed v3
- *
- * Bugs fixed:
- * 1. STALE CLOSURE: submitResult() called from useEffect timer captured
- *    selected=[] (initial state). Fixed by mirroring selected in selectedRef
- *    so the timer callback always reads the live value.
- * 2. ALL_WORDS shuffled at module level — moved inside component so each
- *    mount gets a fresh shuffle, preventing stale ordering.
- */
 import { useState, useEffect, useRef } from "react";
 import { T } from "../utils/theme";
 import { DarkCard, Btn, Badge } from "./RiskDashboard";
 import { useAssessment } from "../context/AssessmentContext";
+import { getToken } from "../services/api";
 
-const TARGET_WORDS = ["River","Apple","Clock","Bridge","Music","Cloud","Forest","Candle","Mirror","Stone"];
-const DISTRACTORS  = ["Glass","Lantern","Copper","Flame","Arrow","Desert"];
+// ── 8 built-in word pools (10 targets + 6 distractors each) ─────────────────
+const BUILTIN_POOLS = [
+  { targets: ["River","Apple","Clock","Bridge","Music","Cloud","Forest","Candle","Mirror","Stone"],
+    distractors: ["Glass","Lantern","Copper","Flame","Arrow","Desert"] },
+  { targets: ["Anchor","Feather","Garden","Hammer","Island","Jacket","Kitten","Lemon","Marble","Needle"],
+    distractors: ["Oyster","Pillow","Quartz","Ribbon","Saddle","Tulip"] },
+  { targets: ["Cabin","Dolphin","Ember","Falcon","Glacier","Harbor","Iris","Jungle","Kettle","Lantern"],
+    distractors: ["Mango","Noodle","Orchid","Pebble","Quiver","Raven"] },
+  { targets: ["Amber","Basket","Crimson","Dagger","Eclipse","Fable","Goblet","Hollow","Ivory","Jasper"],
+    distractors: ["Kelp","Lotus","Mystic","Noble","Onyx","Pearl"] },
+  { targets: ["Acorn","Blizzard","Cavern","Dewdrop","Erosion","Fjord","Grotto","Heron","Inlet","Jewel"],
+    distractors: ["Kindle","Lagoon","Mosaic","Nebula","Oasis","Prism"] },
+  { targets: ["Atlas","Beacon","Cipher","Dome","Epoch","Fern","Glyph","Haven","Index","Junction"],
+    distractors: ["Knoll","Ledge","Marsh","Nomad","Orbit","Parish"] },
+  { targets: ["Bison","Cobalt","Drizzle","Envoy","Flint","Grove","Hearth","Icon","Joust","Knave"],
+    distractors: ["Lapis","Manor","Notch","Otter","Plume","Quest"] },
+  { targets: ["Abyss","Bronze","Crest","Drift","Enamel","Frond","Gulch","Haze","Imprint","Jinx"],
+    distractors: ["Keel","Lore","Mirth","Niche","Omen","Pivot"] },
+];
 
-function shuffled(arr) {
-  return [...arr].sort(() => Math.random() - 0.5);
+function pickPool(customPools) {
+  // Merge built-in + custom, pick one at random
+  const all = [...BUILTIN_POOLS, ...customPools];
+  return all[Math.floor(Math.random() * all.length)];
 }
 
 export default function MemoryTest({ setPage }) {
   const { setMemoryData } = useAssessment();
-  const [phase,    setPhase]    = useState("study");
+  const [pool,     setPool]     = useState(null);   // { targets, distractors }
+  const [allWords, setAllWords] = useState([]);
+  const [phase,    setPhase]    = useState("loading"); // loading|ready|study|distract|recall|result
   const [selected, setSelected] = useState([]);
   const [timer,    setTimer]    = useState(30);
 
-  // ── Live refs — always hold current value inside async callbacks ──────────
-  const selectedRef    = useRef([]);   // mirrors selected state
-  const recallStartRef = useRef(null);
-  const firstClickRef  = useRef(null);
+  const firstClickRef   = useRef(null);
+  const recallStartRef  = useRef(null);
 
-  // Shuffle words once per mount
-  const allWordsRef = useRef(shuffled([...TARGET_WORDS, ...DISTRACTORS]));
-
-  // Keep selectedRef in sync
-  function setSelectedSync(next) {
-    selectedRef.current = next;
-    setSelected(next);
-  }
-
+  // Load content (custom pools from backend) then pick a pool
   useEffect(() => {
-    if (phase === "result") return;
-    const iv = setInterval(() => setTimer(t => {
-      if (t <= 1) {
-        clearInterval(iv);
-        if (phase === "study") {
-          setPhase("distract");
-          setTimer(10);
-        } else if (phase === "distract") {
-          setPhase("recall");
-          setTimer(60);
-          recallStartRef.current = Date.now();
-        } else if (phase === "recall") {
-          // Use ref — not stale state
-          submitResultWithSelected(selectedRef.current);
+    async function init() {
+      let customPools = [];
+      try {
+        const token = getToken();
+        if (token) {
+          const res = await fetch("/api/content", { headers: { Authorization: `Bearer ${token}` } });
+          if (res.ok) {
+            const data = await res.json();
+            customPools = (data.word_sets || []).map(ws => ({
+              targets:     ws.words.slice(0, 10),
+              distractors: ws.words.slice(10, 16),
+            }));
+          }
         }
-        return 0;
-      }
-      return t - 1;
-    }), 1000);
+      } catch(e) {}
+      const chosen = pickPool(customPools);
+      const shuffled = [...chosen.targets, ...chosen.distractors].sort(() => Math.random() - 0.5);
+      setPool(chosen);
+      setAllWords(shuffled);
+      setPhase("ready");
+    }
+    init();
+  }, []);
+
+  // Study countdown
+  useEffect(() => {
+    if (phase !== "study") return;
+    if (timer <= 0) { setPhase("distract"); return; }
+    const iv = setInterval(() => setTimer(t => t - 1), 1000);
+    return () => clearInterval(iv);
+  }, [phase, timer]);
+
+  // Distraction phase countdown
+  useEffect(() => {
+    if (phase !== "distract") return;
+    const iv = setInterval(() => {
+      setTimer(t => {
+        if (t <= 1) { clearInterval(iv); setPhase("recall"); recallStartRef.current = Date.now(); return 0; }
+        return t - 1;
+      });
+    }, 1000);
+    setTimer(20);
     return () => clearInterval(iv);
   }, [phase]);
 
-  function toggle(w) {
+  function toggleWord(w) {
+    if (phase !== "recall") return;
     if (!firstClickRef.current) firstClickRef.current = Date.now();
-    const next = selected.includes(w)
-      ? selected.filter(x => x !== w)
-      : [...selected, w];
-    setSelectedSync(next);
+    setSelected(s => s.includes(w) ? s.filter(x => x !== w) : [...s, w]);
   }
 
-  function submitResult() {
-    submitResultWithSelected(selectedRef.current);
-  }
-
-  function submitResultWithSelected(currentSelected) {
+  function submitRecall() {
     const latency = recallStartRef.current
       ? ((firstClickRef.current || Date.now()) - recallStartRef.current) / 1000
-      : 5.0;
-
-    const correctSet     = new Set(TARGET_WORDS);
-    const hits           = currentSelected.filter(w => correctSet.has(w));
-    const intrusions     = currentSelected.filter(w => !correctSet.has(w));
-    const recalledTarget = currentSelected.filter(w => correctSet.has(w));
-
+      : 3.0;
+    const correctSet     = new Set(pool.targets);
+    const hits           = selected.filter(w => correctSet.has(w));
+    const intrusions     = selected.filter(w => !correctSet.has(w));
+    const recalledTarget = selected.filter(w => correctSet.has(w));
     let orderMatches = 0;
     for (let i = 0; i < recalledTarget.length - 1; i++) {
-      if (TARGET_WORDS.indexOf(recalledTarget[i]) < TARGET_WORDS.indexOf(recalledTarget[i + 1])) {
-        orderMatches++;
-      }
+      if (pool.targets.indexOf(recalledTarget[i]) < pool.targets.indexOf(recalledTarget[i + 1])) orderMatches++;
     }
-    const orderRatio = recalledTarget.length > 1
-      ? orderMatches / (recalledTarget.length - 1)
-      : 1.0;
-
-    const accuracy = (hits.length / TARGET_WORDS.length) * 100;
-
-    const payload = {
-      word_recall_accuracy:    parseFloat(accuracy.toFixed(2)),
-      pattern_accuracy:        parseFloat(accuracy.toFixed(2)),
-      delayed_recall_accuracy: parseFloat(accuracy.toFixed(2)),
-      recall_latency_seconds:  parseFloat(Math.max(latency, 0.5).toFixed(2)),
-      order_match_ratio:       parseFloat(orderRatio.toFixed(3)),
+    const orderRatio = recalledTarget.length > 1 ? orderMatches / (recalledTarget.length - 1) : 1.0;
+    setMemoryData({
+      word_recall_accuracy:    (hits.length / pool.targets.length) * 100,
+      pattern_accuracy:        (hits.length / pool.targets.length) * 100,
+      delayed_recall_accuracy: Math.max(0, (hits.length / pool.targets.length) * 100 - 5),
+      recall_latency_seconds:  latency,
+      order_match_ratio:       orderRatio,
       intrusion_count:         intrusions.length,
-    };
-
-    console.log("[MemoryTest] payload:", payload);
-    setMemoryData(payload);
+    });
     setPhase("result");
   }
 
-  const correctCount   = selected.filter(w => TARGET_WORDS.includes(w)).length;
-  const intrusionCount = selected.filter(w => !TARGET_WORDS.includes(w)).length;
+  function startMemoryTest() {
+    setSelected([]);
+    setTimer(30);
+    firstClickRef.current = null;
+    recallStartRef.current = null;
+    setPhase("study");
+  }
+
+  const LIME = "#C8F135";
+  if (!pool || phase === "loading") return (
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"60vh", color:"#555", fontSize:14 }}>
+      Loading test content…
+    </div>
+  );
 
   return (
     <div>
-      <button onClick={() => setPage("assessments")} style={{ background: "none", border: "none", color: T.creamFaint, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontSize: 13, marginBottom: 24 }}>← Back</button>
-      <h1 style={{ fontFamily: "'Instrument Serif',serif", fontSize: 36, color: T.cream, letterSpacing: -1, marginBottom: 6 }}>Memory Test</h1>
-      <p style={{ color: T.creamFaint, fontSize: 14, marginBottom: 32 }}>Study words → brief distractor → recall. We measure accuracy, latency, order, and errors.</p>
+      <button onClick={() => setPage("assessments")} style={{ background:"none", border:"none", color:T.creamFaint, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", fontSize:13, marginBottom:24 }}>← Back</button>
+      <h1 style={{ fontFamily:"'Instrument Serif',serif", fontSize:36, color:T.cream, letterSpacing:-1, marginBottom:6 }}>Memory Test</h1>
+      <p style={{ color:T.creamFaint, fontSize:14, marginBottom:32 }}>Memorise the words, then recall them after a short distraction task.</p>
 
-      <DarkCard style={{ padding: 32 }} hover={false}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-          <div style={{ fontWeight: 600, color: T.cream, fontSize: 16 }}>
-            {phase === "study"    && `📖 Memorize these ${TARGET_WORDS.length} words`}
-            {phase === "distract" && "🔢 Quick distractor: count backwards from 50"}
-            {phase === "recall"   && "🧠 Select the words you remember"}
-            {phase === "result"   && "✅ Results"}
+      {phase === "ready" && (
+        <DarkCard style={{ padding:32, textAlign:"center" }} hover={false}>
+          <div style={{ fontSize:48, marginBottom:16 }}>🧠</div>
+          <h2 style={{ color:T.cream, fontFamily:"'Instrument Serif',serif", fontSize:28, marginBottom:12 }}>Ready to start?</h2>
+          <p style={{ color:T.creamFaint, fontSize:14, marginBottom:24 }}>
+            You will get 30 seconds to study 10 words, then a short distraction task, then recall.
+          </p>
+          <Btn onClick={startMemoryTest}>Start Memory Test →</Btn>
+        </DarkCard>
+      )}
+
+      {phase === "study" && (
+        <DarkCard style={{ padding:32 }} hover={false}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
+            <div style={{ fontSize:11, color:T.creamFaint, textTransform:"uppercase", letterSpacing:1 }}>Study these {pool.targets.length} words</div>
+            <div style={{ fontWeight:900, color:timer <= 10 ? T.red : LIME, fontSize:28 }}>{timer}s</div>
           </div>
-          {phase !== "result" && (
-            <div style={{ background: phase === "recall" ? "rgba(232,64,64,0.15)" : T.bg3, color: phase === "recall" ? T.red : T.cream, fontWeight: 700, fontSize: 20, padding: "8px 20px", borderRadius: 12, border: `1px solid ${phase === "recall" ? "rgba(232,64,64,0.3)" : T.cardBorder}` }}>
-              {timer}s
-            </div>
-          )}
-        </div>
-
-        {phase === "study" && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-            {TARGET_WORDS.map(w => (
-              <div key={w} style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${T.cardBorder}`, color: T.cream, padding: "10px 18px", borderRadius: 10, fontWeight: 600, fontSize: 14 }}>{w}</div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:12 }}>
+            {pool.targets.map((w,i) => (
+              <div key={w} style={{ background:`${LIME}12`, border:`1px solid ${LIME}33`, borderRadius:10, padding:"10px 18px", color:LIME, fontWeight:700, fontSize:15, animation:`fadeIn 0.3s ${i*0.08}s both` }}>{w}</div>
             ))}
           </div>
-        )}
+          <div style={{ marginTop:20, color:T.creamFaint, fontSize:12 }}>Memorise them — they will disappear in {timer} seconds.</div>
+        </DarkCard>
+      )}
 
-        {phase === "distract" && (
-          <div style={{ textAlign: "center", padding: "40px 0", color: T.creamFaint }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🔢</div>
-            <div style={{ fontSize: 18, color: T.cream }}>Count backwards from 50 by 3s</div>
-            <div style={{ fontSize: 13, marginTop: 8 }}>50… 47… 44… 41…</div>
+      {phase === "distract" && (
+        <DarkCard style={{ padding:32, textAlign:"center" }} hover={false}>
+          <div style={{ fontSize:48, marginBottom:16 }}>🧮</div>
+          <h2 style={{ color:T.cream, fontFamily:"'Instrument Serif',serif", fontSize:28, marginBottom:12 }}>Distraction Task</h2>
+          <p style={{ color:T.creamFaint, fontSize:14, marginBottom:24 }}>Count backwards from 100 by 7s. This clears short-term memory.</p>
+          <div style={{ fontWeight:900, color:T.red, fontSize:52, letterSpacing:2 }}>{timer}</div>
+          <p style={{ color:"#555", fontSize:12, marginTop:12 }}>Recall phase begins when timer ends.</p>
+        </DarkCard>
+      )}
+
+      {phase === "recall" && (
+        <DarkCard style={{ padding:32 }} hover={false}>
+          <div style={{ fontSize:11, color:T.creamFaint, textTransform:"uppercase", letterSpacing:1, marginBottom:20 }}>
+            Select all words you remember ({selected.length} selected)
           </div>
-        )}
-
-        {phase === "recall" && (
-          <>
-            <p style={{ color: T.creamFaint, fontSize: 13, marginBottom: 16 }}>Select ALL words from the original list (including distractors — choose carefully).</p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 24 }}>
-              {allWordsRef.current.map(w => {
-                const sel = selected.includes(w);
-                return (
-                  <button key={w} onClick={() => toggle(w)} style={{ background: sel ? T.red : "rgba(255,255,255,0.04)", color: sel ? T.white : T.creamDim, border: `1px solid ${sel ? T.red : T.cardBorder}`, padding: "10px 18px", borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all 0.15s", boxShadow: sel ? `0 0 16px ${T.redGlow}` : "none" }}>{w}</button>
-                );
-              })}
-            </div>
-            <Btn onClick={submitResult}>Submit →</Btn>
-          </>
-        )}
-
-        {phase === "result" && (
-          <div style={{ textAlign: "center", padding: "20px 0" }}>
-            <div style={{ fontFamily: "'Instrument Serif',serif", fontSize: 80, color: T.cream, lineHeight: 1 }}>
-              {correctCount}<span style={{ fontSize: 32, color: T.creamFaint }}>/{TARGET_WORDS.length}</span>
-            </div>
-            <div style={{ color: T.creamFaint, fontSize: 16, margin: "12px 0 20px" }}>Words Recalled</div>
-            <Badge level={correctCount >= 8 ? "Low" : correctCount >= 5 ? "Moderate" : "High"} />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, margin: "24px 0", textAlign: "left" }}>
-              {[
-                { label: "Correct",          v: `${correctCount}/${TARGET_WORDS.length}`, c: T.green },
-                { label: "Intrusion Errors", v: intrusionCount,                           c: intrusionCount === 0 ? T.green : T.amber },
-                { label: "Recall Latency",   v: `~${firstClickRef.current ? Math.round((firstClickRef.current - recallStartRef.current) / 1000) : "?"}s`, c: T.cream },
-                { label: "Accuracy",         v: `${Math.round((correctCount / TARGET_WORDS.length) * 100)}%`, c: T.green },
-              ].map(m => (
-                <div key={m.label} style={{ background: T.bg3, borderRadius: 12, padding: 16 }}>
-                  <div style={{ fontSize: 11, color: T.creamFaint, marginBottom: 4 }}>{m.label}</div>
-                  <div style={{ fontWeight: 700, color: m.c, fontSize: 22 }}>{m.v}</div>
-                </div>
-              ))}
-            </div>
-            <Btn onClick={() => setPage("assessments")}>← Back to Tests</Btn>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:24 }}>
+            {allWords.map(w => {
+              const sel = selected.includes(w);
+              return (
+                <button key={w} onClick={() => toggleWord(w)} style={{ padding:"10px 18px", borderRadius:10, border:`1px solid ${sel ? LIME : "rgba(255,255,255,0.12)"}`, background: sel ? `${LIME}18` : "rgba(255,255,255,0.04)", color: sel ? LIME : T.creamFaint, fontWeight: sel ? 700 : 400, fontSize:14, cursor:"pointer", transition:"all 0.15s" }}>
+                  {w}
+                </button>
+              );
+            })}
           </div>
-        )}
-      </DarkCard>
+          <Btn onClick={submitRecall}>Submit Recall →</Btn>
+        </DarkCard>
+      )}
+
+      {phase === "result" && (
+        <DarkCard style={{ padding:32 }} hover={false}>
+          <div style={{ fontSize:11, color:T.creamFaint, textTransform:"uppercase", letterSpacing:1, marginBottom:20 }}>Results</div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:24 }}>
+            {pool.targets.map(w => {
+              const hit = selected.includes(w);
+              return <div key={w} style={{ padding:"8px 16px", borderRadius:10, border:`1px solid ${hit ? LIME+"44" : T.red+"44"}`, background: hit ? `${LIME}12` : "rgba(232,64,64,0.08)", color: hit ? LIME : T.red, fontSize:13, fontWeight:600 }}>{hit ? "✓" : "✗"} {w}</div>;
+            })}
+          </div>
+          <div style={{ background:"rgba(74,222,128,0.08)", borderRadius:14, padding:18, border:"1px solid rgba(74,222,128,0.15)", marginBottom:16 }}>
+            <div style={{ color:LIME, fontWeight:700, fontSize:13, marginBottom:4 }}>✓ Memory data captured</div>
+            <div style={{ color:T.creamFaint, fontSize:13 }}>{selected.filter(w => pool.targets.includes(w)).length} / {pool.targets.length} words recalled correctly.</div>
+          </div>
+          <Btn onClick={() => setPage("assessments")}>← Back to Tests</Btn>
+        </DarkCard>
+      )}
     </div>
   );
 }

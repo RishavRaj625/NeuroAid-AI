@@ -65,7 +65,7 @@ export default function DisclaimerPage({ setView, onAccept }) {
             <span style={{ fontWeight: 700, color: "#f59e0b", fontSize: 14 }}>Important Notice</span>
           </div>
           <p style={{ color: T.creamDim, fontSize: 13, lineHeight: 1.75, margin: 0 }}>
-            NeuroAid is a <strong style={{ color: T.cream }}>behavioral screening tool</strong>, not a medical diagnostic device. It uses
+            MindSaathi is a <strong style={{ color: T.cream }}>behavioral screening tool</strong>, not a medical diagnostic device. It uses
             cognitive performance metrics to estimate risk patterns. Results are <strong style={{ color: T.cream }}>not a diagnosis</strong> and
             should never replace professional medical evaluation. Always consult a qualified neurologist
             or physician for clinical assessment.
@@ -74,7 +74,7 @@ export default function DisclaimerPage({ setView, onAccept }) {
 
         {/* What it does section */}
         <DarkCard style={{ padding: 24, marginBottom: 24 }} hover={false}>
-          <div style={{ fontWeight: 700, color: T.cream, fontSize: 14, marginBottom: 16 }}>What NeuroAid Does</div>
+          <div style={{ fontWeight: 700, color: T.cream, fontSize: 14, marginBottom: 16 }}>What MindSaathi Does</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             {[
               { icon: "✅", text: "Measures cognitive performance", ok: true },
@@ -125,7 +125,7 @@ export default function DisclaimerPage({ setView, onAccept }) {
           </div>
           <Checkbox
             checked={checked1} onChange={setChecked1}
-            label="I understand that NeuroAid is a screening tool only and does NOT diagnose medical conditions, Alzheimer's, dementia, Parkinson's, or any other neurological disorder."
+            label="I understand that MindSaathi is a screening tool only and does NOT diagnose medical conditions, Alzheimer's, dementia, Parkinson's, or any other neurological disorder."
           />
           <Checkbox
             checked={checked2} onChange={setChecked2}
@@ -171,3 +171,5 @@ export default function DisclaimerPage({ setView, onAccept }) {
     </div>
   );
 }
+
+
