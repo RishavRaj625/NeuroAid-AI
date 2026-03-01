@@ -1,410 +1,777 @@
-import { T } from "../utils/theme";
-import { Stars, DarkCard, Btn, MiniChart } from "../components/RiskDashboard";
+import { useState, useEffect, useRef } from "react";
 
-export default function LandingPage({ setView }) {
-  const FloatCard = ({ children, style }) => (
-    <div style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 16, padding: "10px 14px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)", backdropFilter: "blur(10px)", ...style }}>{children}</div>
-  );
+const C = {
+  bg:      "#080808",
+  lime:    "#C8F135",
+  limeDim: "#9ABF28",
+  white:   "#FFFFFF",
+  offWhite:"#E8E8E8",
+  dim:     "#555555",
+};
 
+/* ── Fixed grid ──────────────────────────────────────────── */
+const GridBg = () => (
+  <div style={{
+    position:"fixed", inset:0, zIndex:0, pointerEvents:"none",
+    backgroundImage:`linear-gradient(rgba(255,255,255,0.038) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.038) 1px,transparent 1px)`,
+    backgroundSize:"80px 80px",
+  }} />
+);
+
+/* ── Nav dropdown data ──────────────────────────────────── */
+const NAV_DATA = {
+  Guides: [
+    { title:"Getting Started", items:[
+      { icon:"🚀", label:"Quick Start Guide", desc:"Set up your first assessment in 5 minutes" },
+      { icon:"📖", label:"How Tests Work",    desc:"The science behind each screening" },
+      { icon:"🎯", label:"Reading Results",   desc:"Interpret your cognitive score dashboard" },
+    ]},
+    { title:"Advanced", items:[
+      { icon:"🩺", label:"Doctor Portal",     desc:"How clinicians review patient data" },
+      { icon:"📊", label:"Progress Tracking", desc:"Monitor improvement over time" },
+      { icon:"🔗", label:"API Docs",          desc:"Integrate MindSaathi into your platform" },
+    ]},
+  ],
+  Support: [
+    { title:"Help Center", items:[
+      { icon:"💬", label:"Live Chat",     desc:"Talk to our team in real time" },
+      { icon:"📧", label:"Email Support", desc:"Response within 24 hours" },
+      { icon:"❓", label:"FAQ",           desc:"Most common questions answered" },
+    ]},
+    { title:"Resources", items:[
+      { icon:"📋", label:"Release Notes",     desc:"What's new in each update" },
+      { icon:"🐛", label:"Report a Bug",      desc:"Help us improve the platform" },
+      { icon:"🏥", label:"Clinical Partners", desc:"For hospitals and clinics" },
+    ]},
+  ],
+  About: [
+    { title:"Company", items:[
+      { icon:"🧠", label:"Our Mission",  desc:"Why we built MindSaathi" },
+      { icon:"👥", label:"The Team",     desc:"Neuroscientists and engineers" },
+      { icon:"📰", label:"Press & Media",desc:"Coverage and announcements" },
+    ]},
+    { title:"Science", items:[
+      { icon:"🔬", label:"Research Papers", desc:"Peer-reviewed studies behind our tests" },
+      { icon:"🏆", label:"Accuracy Data",   desc:"98% clinical validation results" },
+      { icon:"🌐", label:"Global Reach",    desc:"How we serve patients worldwide" },
+    ]},
+  ],
+};
+
+/* ── Dropdown panel ─────────────────────────────────────── */
+function Dropdown({ name }) {
+  const sections = NAV_DATA[name];
   return (
-    <div style={{ background: T.bg, color: T.cream, fontFamily: "'DM Sans',sans-serif" }}>
-
-      {/* NAV */}
-      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 60px", borderBottom: `1px solid ${T.cardBorder}`, position: "sticky", top: 0, zIndex: 50, background: "rgba(10,10,10,0.88)", backdropFilter: "blur(16px)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: T.red, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 0 14px ${T.redGlow}` }}>⬡</div>
-          <span style={{ fontFamily: "'Instrument Serif',serif", fontSize: 20, letterSpacing: -0.5 }}>NeuroAid</span>
-        </div>
-        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-          {["Guides","Support"].map(l => (
-            <button key={l} style={{ background: "none", border: "none", color: T.creamFaint, fontWeight: 500, cursor: "pointer", fontSize: 14, padding: "8px 14px", borderRadius: 8, fontFamily: "'DM Sans',sans-serif" }}
-              onMouseEnter={e => e.target.style.color = T.cream} onMouseLeave={e => e.target.style.color = T.creamFaint}>{l}</button>
-          ))}
-          <button onClick={() => setView("about")} style={{ background: "none", border: "none", color: T.creamFaint, fontWeight: 700, cursor: "pointer", fontSize: 14, padding: "8px 14px", borderRadius: 8, fontFamily: "'DM Sans',sans-serif" }}
-            onMouseEnter={e => e.target.style.color = T.cream} onMouseLeave={e => e.target.style.color = T.creamFaint}>About</button>
-          <Btn small onClick={() => setView("disclaimer")}>Start Free Assessment</Btn>
-        </div>
-      </nav>
-
-      {/* HERO */}
-      <section style={{ position: "relative", minHeight: "92vh", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", background: "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(232,64,64,0.15) 0%, transparent 60%), #0a0a0a" }}>
-        <Stars count={70} />
-        <div style={{ position: "absolute", width: 340, height: 340, borderRadius: "50%", background: "radial-gradient(circle, rgba(232,64,64,0.28) 0%, transparent 70%)", top: "50%", left: "50%", transform: "translate(-50%,-50%)", animation: "glow-pulse 4s ease-in-out infinite", pointerEvents: "none" }} />
-
-        <FloatCard style={{ position: "absolute", left: "8%", top: "25%", animation: "floatL 7s ease-in-out infinite" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: "#1a3a1a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>🎙️</div>
-            <div><div style={{ fontSize: 10, color: T.creamFaint }}>Speech Rate</div><div style={{ fontSize: 13, fontWeight: 700, color: T.cream }}>142 wpm</div><div style={{ fontSize: 10, color: T.green }}>● Normal</div></div>
-          </div>
-        </FloatCard>
-        <FloatCard style={{ position: "absolute", left: "6%", top: "46%", animation: "floatL 9s ease-in-out infinite 1s" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: "#1a1a3a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>🧠</div>
-            <div><div style={{ fontSize: 10, color: T.creamFaint }}>Memory Recall</div><div style={{ fontSize: 13, fontWeight: 700, color: T.cream }}>9 / 12 words</div><div style={{ fontSize: 10, color: T.green }}>● 75% accuracy</div></div>
-          </div>
-        </FloatCard>
-        <FloatCard style={{ position: "absolute", left: "5%", top: "65%", animation: "floatL 8s ease-in-out infinite 0.5s" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: "#2a1a0a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>⚡</div>
-            <div><div style={{ fontSize: 10, color: T.creamFaint }}>Reaction Time</div><div style={{ fontSize: 13, fontWeight: 700, color: T.cream }}>284 ms avg</div><div style={{ fontSize: 10, color: T.amber }}>● Watch trend</div></div>
-          </div>
-        </FloatCard>
-        <FloatCard style={{ position: "absolute", right: "7%", top: "22%", animation: "floatR 8s ease-in-out infinite 0.5s", minWidth: 130 }}>
-          <div style={{ fontSize: 10, color: T.creamFaint, marginBottom: 4 }}>Cognitive Score</div>
-          <div style={{ fontFamily: "'Instrument Serif',serif", fontSize: 36, color: T.cream, lineHeight: 1 }}>74</div>
-          <div style={{ fontSize: 10, color: T.green, marginTop: 4 }}>● Low Risk</div>
-        </FloatCard>
-        <FloatCard style={{ position: "absolute", right: "6%", top: "42%", animation: "floatR 6s ease-in-out infinite 2s", minWidth: 150 }}>
-          <div style={{ fontSize: 10, color: T.creamFaint, marginBottom: 6 }}>Assessment Complete ✓</div>
-          <div style={{ background: T.bg3, borderRadius: 8, padding: "6px 10px", fontSize: 11, fontWeight: 600, color: T.green, textAlign: "center" }}>View Full Results →</div>
-        </FloatCard>
-        <FloatCard style={{ position: "absolute", right: "8%", top: "61%", animation: "floatR 7s ease-in-out infinite 1s" }}>
-          <div style={{ fontSize: 10, color: T.creamFaint, marginBottom: 2 }}>Pause Frequency</div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: T.cream }}>0.8 / min</div>
-          <div style={{ fontSize: 10, color: T.green }}>● Normal</div>
-        </FloatCard>
-
-        <div style={{ position: "relative", zIndex: 2, textAlign: "center" }}>
-          <div style={{ width: 220, margin: "0 auto", background: "#1c1c1e", borderRadius: 36, padding: "16px 14px 24px", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 40px 100px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.1)", animation: "float 6s ease-in-out infinite" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, padding: "0 4px" }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: T.cream }}>9:41</span>
-              <span style={{ fontSize: 10, color: T.creamFaint }}>◀</span>
-            </div>
-            <div style={{ background: T.cream, borderRadius: 24, padding: "18px 14px", minHeight: 280 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 14, textAlign: "center" }}>My Score</div>
-              <div style={{ textAlign: "center", marginBottom: 14 }}>
-                <div style={{ fontFamily: "'Instrument Serif',serif", fontSize: 56, color: "#111", lineHeight: 1 }}>74</div>
-                <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Cognitive Score</div>
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#e8f8ee", borderRadius: 20, padding: "3px 10px", fontSize: 10, fontWeight: 700, color: "#1a7a3a", marginTop: 6 }}>● Low Risk</div>
+    <div onClick={e=>e.stopPropagation()} style={{
+      position:"absolute", top:"calc(100% + 14px)", left:"50%",
+      transform:"translateX(-50%)",
+      background:"rgba(8,10,8,0.98)",
+      backdropFilter:"blur(32px)", WebkitBackdropFilter:"blur(32px)",
+      border:"1px solid rgba(255,255,255,0.10)",
+      borderRadius:20,
+      boxShadow:"0 32px 80px rgba(0,0,0,0.80),inset 0 1px 0 rgba(255,255,255,0.07)",
+      padding:"24px 28px",
+      display:"flex", gap:32,
+      minWidth:520, zIndex:9999,
+      animation:"dd-in 0.22s cubic-bezier(0.34,1.56,0.64,1) both",
+    }}>
+      <div style={{ position:"absolute",top:0,left:"10%",right:"10%",height:1,background:`linear-gradient(90deg,transparent,${C.lime}44,transparent)` }} />
+      {sections.map(sec=>(
+        <div key={sec.title} style={{ flex:1 }}>
+          <div style={{ fontSize:10,fontWeight:700,color:C.lime,letterSpacing:2,textTransform:"uppercase",marginBottom:14 }}>{sec.title}</div>
+          {sec.items.map(it=>(
+            <div key={it.label} style={{ display:"flex",alignItems:"flex-start",gap:12,padding:"9px 12px",borderRadius:12,marginBottom:3,cursor:"pointer",transition:"background 0.15s" }}
+              onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.05)"}
+              onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+            >
+              <span style={{ fontSize:19,flexShrink:0,marginTop:1 }}>{it.icon}</span>
+              <div>
+                <div style={{ fontWeight:700,fontSize:13,color:C.white,marginBottom:2 }}>{it.label}</div>
+                <div style={{ fontSize:11,color:C.dim,lineHeight:1.5 }}>{it.desc}</div>
               </div>
-              {[{label:"Speech",v:74,c:"#e84040"},{label:"Memory",v:82,c:"#22c55e"},{label:"Reaction",v:68,c:"#3b82f6"}].map(d => (
-                <div key={d.label} style={{ marginBottom: 8 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                    <span style={{ fontSize: 10, color: "#666" }}>{d.label}</span>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#111" }}>{d.v}</span>
-                  </div>
-                  <div style={{ height: 3, background: "#e0e0e0", borderRadius: 2 }}><div style={{ height: "100%", width: `${d.v}%`, background: d.c, borderRadius: 2 }} /></div>
-                </div>
-              ))}
-              <div style={{ marginTop: 14, background: "#e84040", borderRadius: 12, padding: "10px 0", textAlign: "center", fontSize: 12, fontWeight: 700, color: "white", cursor: "pointer" }}>Start Assessment →</div>
-            </div>
-          </div>
-          <div style={{ marginTop: 60, maxWidth: 620, padding: "0 24px" }}>
-            <div style={{ display: "inline-block", background: "rgba(232,64,64,0.1)", border: "1px solid rgba(232,64,64,0.25)", borderRadius: 20, padding: "5px 14px", fontSize: 12, color: T.red, fontWeight: 600, marginBottom: 20 }}>
-              🧠 Early Cognitive Risk Awareness Tool
-            </div>
-            <h1 style={{ fontFamily: "'Instrument Serif',serif", fontSize: "clamp(38px,5vw,62px)", fontWeight: 400, lineHeight: 1.08, letterSpacing: -2, color: T.cream }}>
-              Reimagine How You<br />Interact With <span style={{ fontStyle: "italic" }}>Your Brain</span>
-            </h1>
-            <p style={{ color: T.creamDim, fontSize: 16, marginTop: 16, marginBottom: 10, lineHeight: 1.6 }}>
-              Don't just assess. <em>Understand. Practice. Master.</em><br/>
-              Turn passive cognitive data into active insights.
-            </p>
-            <p style={{ color: T.creamFaint, fontSize: 13, marginBottom: 28, lineHeight: 1.5 }}>
-              ⚠️ This tool does NOT diagnose medical conditions. For individuals aged 40+ and those with family history.
-            </p>
-            <Btn onClick={() => setView("disclaimer")} style={{ fontSize: 16, padding: "14px 32px" }}>⬡ Start Free Assessment</Btn>
-          </div>
-        </div>
-      </section>
-
-      
-
-      
-      {/* ── WHY THIS MATTERS + STATS ── */}
-      <section style={{ background: "#0a0a0a", padding: "80px 60px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ display: "flex", gap: 60, alignItems: "flex-start", marginBottom: 60 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: "inline-block", background: "rgba(232,64,64,0.1)", border: "1px solid rgba(232,64,64,0.25)", borderRadius: 20, padding: "5px 14px", fontSize: 12, color: T.red, fontWeight: 600, marginBottom: 16 }}>
-                Why This Matters
-              </div>
-              <h2 style={{ fontFamily: "'Instrument Serif',serif", fontSize: 38, fontWeight: 400, letterSpacing: -1.2, color: T.cream, lineHeight: 1.2, marginBottom: 16 }}>
-                Early detection can change<br /><em style={{ color: T.creamDim }}>everything.</em>
-              </h2>
-              <p style={{ color: T.creamDim, fontSize: 15, lineHeight: 1.75, marginBottom: 20 }}>
-                Cognitive decline often begins <strong style={{ color: T.cream }}>10–20 years</strong> before symptoms become obvious. 
-                Regular screening allows you to track subtle changes over time and seek help before 
-                serious decline sets in.
-              </p>
-              <p style={{ color: T.creamFaint, fontSize: 14, lineHeight: 1.7 }}>
-                NeuroAid provides scientifically inspired cognitive assessments accessible to everyone — 
-                no appointment needed, no expensive equipment. Just 7–10 minutes that could matter most.
-              </p>
-            </div>
-            <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              {[
-                { stat: "55M+", label: "People worldwide live with dementia", color: T.red },
-                { stat: "10M",  label: "New cases of dementia diagnosed every year", color: T.amber },
-                { stat: "40%",  label: "Of dementia cases may be preventable with lifestyle changes", color: T.green },
-                { stat: "7–10", label: "Minutes for a full NeuroAid assessment", color: T.blue },
-              ].map((s, i) => (
-                <div key={i} style={{ background: T.bg3, borderRadius: 16, padding: "24px 20px", border: `1px solid ${T.cardBorder}` }}>
-                  <div style={{ fontFamily: "'Instrument Serif',serif", fontSize: 38, color: s.color, lineHeight: 1, marginBottom: 8 }}>{s.stat}</div>
-                  <div style={{ fontSize: 12, color: T.creamFaint, lineHeight: 1.5 }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Who it's for */}
-          <div style={{ background: T.bg3, borderRadius: 20, padding: "32px 36px", border: `1px solid ${T.cardBorder}` }}>
-            <div style={{ fontSize: 11, color: T.creamFaint, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 20 }}>Who Should Use NeuroAid</div>
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-              {[
-                { icon: "👴", title: "Adults 40+", desc: "Establish a cognitive baseline while your brain is healthy" },
-                { icon: "🧬", title: "Family History", desc: "First-degree relatives of Alzheimer's or Parkinson's patients" },
-                { icon: "🔍", title: "Concerned Individuals", desc: "Anyone noticing subtle memory or cognitive changes" },
-                { icon: "🤝", title: "Caregivers", desc: "Help monitor a loved one's cognitive health over time" },
-              ].map((w, i) => (
-                <div key={i} style={{ flex: "1 0 200px", display: "flex", gap: 12, alignItems: "flex-start" }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 10, background: T.bg2, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{w.icon}</div>
-                  <div>
-                    <div style={{ fontWeight: 700, color: T.cream, fontSize: 14, marginBottom: 4 }}>{w.title}</div>
-                    <div style={{ color: T.creamFaint, fontSize: 13, lineHeight: 1.5 }}>{w.desc}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── COMPLETE LEARNING ECOSYSTEM (feature cards) ── */}
-      <section style={{ background: "#0f0f0f", padding: "90px 60px", textAlign: "center" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <h2 style={{ fontFamily: "'Instrument Serif',serif", fontSize: 40, fontWeight: 400, letterSpacing: -1.4, color: T.cream, marginBottom: 10 }}>Complete Assessment Ecosystem</h2>
-          <p style={{ color: T.creamDim, fontSize: 15, marginBottom: 56, maxWidth: 520, margin: "0 auto 56px" }}>
-            Everything you need to understand your brain health, all in one place.
-          </p>
-
-          {/* Main feature grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
-            {/* Routine Generation */}
-            <DarkCard style={{ padding: 28, textAlign: "left", border: `1px solid rgba(96,165,250,0.2)` }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(96,165,250,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>📅</div>
-                <div style={{ fontWeight: 700, color: T.cream, fontSize: 16 }}>Assessment Scheduling</div>
-              </div>
-              <p style={{ color: T.creamFaint, fontSize: 13, lineHeight: 1.65, marginBottom: 16 }}>Automated test schedules built around your cognitive goals and progress.</p>
-              <div style={{ background: T.bg3, borderRadius: 12, padding: 14, border: `1px solid ${T.cardBorder}` }}>
-                {[{ time: "09:00 AM", c: T.blue }, { time: "10:30 AM", c: "#a78bfa" }, { time: "01:00 PM", c: T.green }].map((item, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 0", borderBottom: i < 2 ? `1px solid ${T.cardBorder}` : "none" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: item.c }} />
-                      <div style={{ width: 80, height: 6, borderRadius: 3, background: "rgba(255,255,255,0.1)" }} />
-                    </div>
-                    <span style={{ fontSize: 11, color: T.creamFaint }}>{item.time}</span>
-                  </div>
-                ))}
-              </div>
-            </DarkCard>
-
-            {/* Learning Feed */}
-            <DarkCard style={{ padding: 28, textAlign: "left", border: `1px solid rgba(245,158,11,0.2)` }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(245,158,11,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>📊</div>
-                <div style={{ fontWeight: 700, color: T.cream, fontSize: 16 }}>Results Feed</div>
-              </div>
-              <p style={{ color: T.creamFaint, fontSize: 13, lineHeight: 1.65, marginBottom: 16 }}>Bite-sized insights generated from your cognitive assessments.</p>
-              <div style={{ background: T.bg3, borderRadius: 12, padding: 14, border: `1px solid ${T.cardBorder}` }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                  <span style={{ fontSize: 12, color: T.creamDim, fontWeight: 600 }}>Results</span>
-                  <span style={{ fontSize: 16 }}>⚡</span>
-                </div>
-                <div style={{ background: T.bg, borderRadius: 8, height: 80, display: "flex", flexDirection: "column", justifyContent: "center", padding: 10, gap: 6 }}>
-                  {["Speech: Normal range","Memory: Improving","Reaction: Stable"].map((t, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <div style={{ width: 5, height: 5, borderRadius: "50%", background: [T.green, T.blue, T.amber][i] }} />
-                      <span style={{ fontSize: 11, color: T.creamFaint }}>{t}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </DarkCard>
-
-            {/* Smart Note-Taking */}
-            <DarkCard style={{ padding: 28, textAlign: "left", border: `1px solid rgba(74,222,128,0.2)` }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(74,222,128,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🏷️</div>
-                <div style={{ fontWeight: 700, color: T.cream, fontSize: 16 }}>Smart Reporting</div>
-              </div>
-              <p style={{ color: T.creamFaint, fontSize: 13, lineHeight: 1.65, marginBottom: 16 }}>Text analysis + visual charts. Doctor-ready reports with one click.</p>
-              <div style={{ background: T.bg3, borderRadius: 12, padding: 14, border: `1px solid ${T.cardBorder}`, display: "flex", gap: 12, alignItems: "center" }}>
-                <div style={{ flex: 1 }}>
-                  {[70, 85, 65].map((w, i) => (
-                    <div key={i} style={{ height: 5, borderRadius: 2, background: `rgba(74,222,128,${0.3 + i * 0.2})`, marginBottom: i < 2 ? 6 : 0, width: `${w}%` }} />
-                  ))}
-                </div>
-                <div style={{ width: 36, height: 36, borderRadius: 10, border: `2px solid ${T.green}50`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>📄</div>
-              </div>
-            </DarkCard>
-
-            {/* Deep Focus */}
-            <DarkCard style={{ padding: 28, textAlign: "left", border: `1px solid rgba(232,64,64,0.2)` }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(232,64,64,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>⏱️</div>
-                <div style={{ fontWeight: 700, color: T.cream, fontSize: 16 }}>Deep Focus Mode</div>
-              </div>
-              <p style={{ color: T.creamFaint, fontSize: 13, lineHeight: 1.65 }}>Distraction-free assessment environment with focus timer and immersive UI.</p>
-            </DarkCard>
-
-            {/* Intelligent Quizzes */}
-            <DarkCard style={{ padding: 28, textAlign: "left", border: `1px solid rgba(167,139,250,0.2)`, gridColumn: "2 / 4" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(167,139,250,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>✅</div>
-                <div style={{ fontWeight: 700, color: T.cream, fontSize: 16 }}>Intelligent Assessments</div>
-              </div>
-              <p style={{ color: T.creamFaint, fontSize: 13, lineHeight: 1.65, marginBottom: 16 }}>5 evidence-based cognitive tests — Speech, Memory, Reaction, Stroop, and Motor — powered by 18 behavioral feature signals and Hugging Face NLP models.</p>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {["🎙️ Speech AI","🧠 Memory","⚡ Reaction","🎨 Stroop","🥁 Motor Tap"].map(t => (
-                  <span key={t} style={{ background: "rgba(167,139,250,0.1)", color: "#a78bfa", padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, border: "1px solid rgba(167,139,250,0.2)" }}>{t}</span>
-                ))}
-              </div>
-            </DarkCard>
-          </div>
-        </div>
-      </section>
-
-      {/* FEATURES */}
-      <section style={{ background: "#0f0f0f", padding: "80px 60px", borderRadius: "24px 24px 0 0" }}>
-        <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-          <div style={{ display: "flex", gap: 60, alignItems: "flex-start" }}>
-            <div style={{ flex: 1 }}>
-              <h2 style={{ fontFamily: "'Instrument Serif',serif", fontSize: 36, fontWeight: 400, letterSpacing: -1.2, lineHeight: 1.15, color: T.cream, marginBottom: 16 }}>Your ultimate cognitive health platform, packed with features to simplify your brain health journey</h2>
-            </div>
-            <div style={{ flex: 1, paddingTop: 6 }}>
-              <p style={{ color: T.creamDim, fontSize: 15, lineHeight: 1.75, marginBottom: 20 }}>From advanced speech biomarkers to seamless memory tests, we've designed everything to elevate your cognitive screening experience.</p>
-              <Btn variant="cream" onClick={() => setView("disclaimer")}>↓ Get started</Btn>
-            </div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 48 }}>
-            <DarkCard style={{ padding: 32, gridRow: "span 2" }}>
-              <div style={{ background: T.bg3, borderRadius: 16, padding: 16, marginBottom: 20, border: `1px solid ${T.cardBorder}` }}>
-                <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: T.red, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>⬡</div>
-                  <div><div style={{ fontSize: 12, color: T.creamDim, marginBottom: 2 }}>Your weekly assessment is ready 🧠</div><div style={{ fontSize: 11, color: T.creamFaint }}>Tap to begin — takes ~8 minutes</div></div>
-                </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", background: T.bg, borderRadius: 10, padding: "8px 12px" }}>
-                  <div style={{ width: 20, height: 20, borderRadius: 4, background: T.bg2, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }}>📊</div>
-                  <div style={{ fontSize: 11, color: T.creamDim }}>Score improved · <span style={{ color: T.green }}>+4 pts this week</span></div>
-                </div>
-              </div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: T.cream, marginBottom: 10 }}>Push Notifications</div>
-              <div style={{ color: T.creamFaint, fontSize: 14, lineHeight: 1.7 }}>Stay on top of your cognitive health with instant alerts for all assessments and score changes.</div>
-            </DarkCard>
-            <DarkCard style={{ padding: 28 }}>
-              <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
-                <div style={{ width: 80, height: 80, borderRadius: "50%", background: "radial-gradient(circle at 35% 35%, #ffd700, #b8860b)", boxShadow: "0 0 40px rgba(255,215,0,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, color: "#8b6000" }}>⬡</div>
-              </div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: T.cream, marginBottom: 6 }}>Effortless Assessments</div>
-              <div style={{ color: T.creamFaint, fontSize: 14, lineHeight: 1.7 }}>Complete cognitive screenings with a user-friendly, guided interface.</div>
-            </DarkCard>
-            <DarkCard style={{ padding: 28 }}>
-              <div style={{ fontSize: 20, fontWeight: 700, color: T.cream, marginBottom: 10 }}>Longitudinal Tracking</div>
-              <div style={{ color: T.creamFaint, fontSize: 14, lineHeight: 1.7, marginBottom: 16 }}>Score trends over months reveal trajectories invisible to single-point assessments.</div>
-              <MiniChart data={[58,61,64,60,67,70,74]} color={T.red} height={50} />
-            </DarkCard>
-          </div>
-        </div>
-      </section>
-
-      {/* ECOSYSTEM */}
-      <section style={{ background: "#0f0f0f", padding: "80px 60px", textAlign: "center" }}>
-        <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-          <h2 style={{ fontFamily: "'Instrument Serif',serif", fontSize: 38, fontWeight: 400, letterSpacing: -1.2, color: T.cream, marginBottom: 10 }}>Explore, create, and assess<br /><em style={{ color: T.creamDim }}>seamlessly in the cognitive ecosystem.</em></h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginTop: 48, marginBottom: 48 }}>
-            {[
-              { bg: "linear-gradient(135deg,#2a0a0a,#6b1a1a)", imgs: ["🎙️","🧠"], label: "Assess Speech & Memory with AI-powered biomarkers" },
-              { bg: "linear-gradient(135deg,#0a1a2a,#1a3a6b)", imgs: ["⚡","📊","🩺"], label: "Track, analyze, and share longitudinal results" },
-              { bg: "linear-gradient(135deg,#1a0a2a,#6b1a6b)", imgs: ["⬡"], label: "Doctor-verified reports and clinical interpretation", star: true },
-            ].map((c, i) => (
-              <DarkCard key={i} style={{ padding: 20, textAlign: "left" }}>
-                <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                  {c.imgs.map((img, j) => <div key={j} style={{ width: 48, height: 48, borderRadius: 12, background: c.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{img}</div>)}
-                  {c.star && <div style={{ width: 48, height: 48, borderRadius: 12, background: "linear-gradient(135deg,#2a1a0a,#8b4513)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>✦</div>}
-                </div>
-                <div style={{ fontSize: 13, color: T.creamDim, lineHeight: 1.6 }}>{c.label}</div>
-              </DarkCard>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 60, alignItems: "center", textAlign: "left", marginTop: 40 }}>
-            <div style={{ flex: 1 }}>
-              <h2 style={{ fontFamily: "'Instrument Serif',serif", fontSize: 36, fontWeight: 400, letterSpacing: -1.2, lineHeight: 1.2, color: T.cream, marginBottom: 16 }}>Privacy that lets you<br /><em>sleep easy</em></h2>
-              <p style={{ color: T.creamDim, fontSize: 14, lineHeight: 1.75 }}>Your cognitive data is encrypted end-to-end and never sold. Only you and your authorized doctors can access your results.</p>
-            </div>
-            <DarkCard style={{ flex: 1, padding: 24 }} hover={false}>
-              <div style={{ fontSize: 12, color: T.creamFaint, marginBottom: 8 }}>Message</div>
-              <div style={{ background: T.bg3, borderRadius: 10, padding: 12, marginBottom: 10, fontSize: 13, color: T.creamDim, fontStyle: "italic" }}>"I love NeuroAid"</div>
-              <div style={{ fontSize: 12, color: T.creamFaint, marginBottom: 8 }}>From</div>
-              <div style={{ background: T.bg3, borderRadius: 10, padding: 12, fontSize: 13, color: T.cream }}>Dr. Elena Marsh<span style={{ color: T.green, fontSize: 11 }}> · Verified</span></div>
-            </DarkCard>
-          </div>
-        </div>
-      </section>
-
-      {/* GATEWAY */}
-      <section style={{ background: "#0e0a18", padding: "80px 60px", textAlign: "center", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", bottom: -100, left: "50%", transform: "translateX(-50%)", width: 600, height: 400, background: "radial-gradient(ellipse 60% 80% at 50% 100%, rgba(232,130,40,0.18) 0%, rgba(140,60,20,0.08) 40%, transparent 70%)", pointerEvents: "none" }} />
-        <div style={{ maxWidth: 1000, margin: "0 auto", position: "relative", zIndex: 2 }}>
-          <h2 style={{ fontFamily: "'Instrument Serif',serif", fontSize: 38, fontWeight: 400, letterSpacing: -1.2, color: T.cream, marginBottom: 10 }}>Your comprehensive gateway<br />to cognitive health tools</h2>
-          <p style={{ color: T.creamFaint, fontSize: 14, marginBottom: 56 }}>Access all 6 cognitive screening tools, all in one secure place.</p>
-          {[[
-            { label: "Speech AI",  bg: "linear-gradient(135deg,#7b2020,#e84040)", icon: "🎙️", rot: "-8deg" },
-            { label: "MemoryTest", bg: "linear-gradient(135deg,#1a3a8b,#4060d0)", icon: "🧠", rot: "0deg"  },
-            { label: "ReactionX",  bg: "linear-gradient(135deg,#1a6040,#28c070)", icon: "⚡", rot: "8deg"  },
-          ],[
-            { label: "Progress",   bg: "linear-gradient(135deg,#2a6020,#50b030)", icon: "📈", rot: "-6deg" },
-            { label: "DocPortal", bg: "linear-gradient(135deg,#5a2080,#9040d0)", icon: "🩺", rot: "0deg"  },
-            { label: "Reports",   bg: "linear-gradient(135deg,#1a4050,#2090b0)", icon: "📄", rot: "6deg"  },
-          ]].map((row, ri) => (
-            <div key={ri} style={{ display: "flex", gap: 24, justifyContent: "center", marginBottom: 32 }}>
-              {row.map(t => (
-                <div key={t.label} onClick={() => setView("disclaimer")}
-                  style={{ width: 140, height: 160, borderRadius: 24, background: t.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, cursor: "pointer", transform: `rotate(${t.rot})`, boxShadow: "0 16px 50px rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.12)", transition: "transform 0.25s" }}
-                  onMouseEnter={e => e.currentTarget.style.transform = "scale(1.06) rotate(0deg)"}
-                  onMouseLeave={e => e.currentTarget.style.transform = `rotate(${t.rot})`}>
-                  <div style={{ fontSize: 40 }}>{t.icon}</div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.9)", letterSpacing: 0.5 }}>{t.label}</div>
-                </div>
-              ))}
             </div>
           ))}
         </div>
-      </section>
-
-      {/* CTA */}
-      <section style={{ position: "relative", background: T.bg, padding: "120px 60px", textAlign: "center", overflow: "hidden" }}>
-        <Stars count={90} />
-        <div style={{ position: "absolute", bottom: -60, left: "50%", transform: "translateX(-50%)", width: 700, height: 350, background: "radial-gradient(ellipse 70% 100% at 50% 100%, rgba(180,100,20,0.22) 0%, rgba(120,60,10,0.1) 40%, transparent 70%)", pointerEvents: "none" }} />
-        <div style={{ position: "relative", zIndex: 2 }}>
-          <h2 style={{ fontFamily: "'Instrument Serif',serif", fontSize: "clamp(28px,4vw,50px)", fontWeight: 400, letterSpacing: -1.5, color: T.cream, lineHeight: 1.2, marginBottom: 20 }}>Experience cognitive health like never<br />before with NeuroAid</h2>
-          <Btn onClick={() => setView("disclaimer")} style={{ fontSize: 16, padding: "14px 32px", marginBottom: 24 }}>⬡ Start Free Assessment</Btn>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center", alignItems: "center", marginBottom: 8 }}>
-            {["🌐","📱","💻"].map((e, i) => <div key={i} style={{ width: 30, height: 30, borderRadius: "50%", background: T.bg2, border: `1px solid ${T.cardBorder}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>{e}</div>)}
-          </div>
-          <div style={{ color: T.creamFaint, fontSize: 12 }}>Available on web, iOS & Android</div>
-        </div>
-      </section>
-
-      {/* FOOTER */}
-      <footer style={{ background: T.bg, borderTop: `1px solid ${T.cardBorder}`, padding: "40px 60px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 40 }}>
-        <div>
-          {["Home","Guides","Support","About"].map(l => (
-            <button key={l} onClick={() => l === "About" && setView("about")} style={{ display: "block", background: "none", border: "none", color: T.creamFaint, fontSize: 13, cursor: "pointer", marginBottom: 8, fontFamily: "'DM Sans',sans-serif", textAlign: "left" }}>{l}</button>
-          ))}
-        </div>
-        <div>
-          <div style={{ color: T.creamDim, fontSize: 13, marginBottom: 12 }}>Stay in touch</div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input placeholder="name@email.com" style={{ background: T.bg2, border: `1px solid ${T.cardBorder}`, borderRadius: 8, padding: "10px 14px", color: T.cream, fontSize: 13, outline: "none", fontFamily: "'DM Sans',sans-serif", width: 200 }} />
-            <Btn small>↗ Subscribe</Btn>
-          </div>
-        </div>
-        <div style={{ color: T.creamFaint, fontSize: 11, lineHeight: 1.7, maxWidth: 300 }}>
-          <strong style={{ color: T.creamDim }}>Medical Disclaimer:</strong> NeuroAid is a screening tool, not a diagnostic device. Always consult a qualified neurologist.
-        </div>
-      </footer>
+      ))}
     </div>
   );
 }
+
+/* ════════════════════════════════════════════════════════
+   NAVBAR — rendered as a React Portal so it's ALWAYS
+   a direct child of <body>, completely outside any
+   transform/perspective ancestor. This is the ONLY
+   reliable fix for position:fixed breaking.
+════════════════════════════════════════════════════════ */
+import { createPortal } from "react-dom";
+
+function NavPortal({ setView, open, setOpen }) {
+  return createPortal(
+    <nav style={{
+      position:"fixed", top:0, left:0, right:0, zIndex:9000,
+      display:"flex", alignItems:"center", justifyContent:"space-between",
+      padding:"0 40px", height:60,
+      background:"rgba(8,8,8,0.92)",
+      backdropFilter:"blur(28px)", WebkitBackdropFilter:"blur(28px)",
+      borderBottom:"1px solid rgba(255,255,255,0.07)",
+      fontFamily:"'DM Sans',sans-serif",
+    }}>
+      {/* Logo */}
+      <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+        <div style={{ width:34,height:34,borderRadius:10,background:`linear-gradient(135deg,${C.lime},${C.limeDim})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:15,color:"#080808",boxShadow:`0 0 18px ${C.lime}44` }}>N</div>
+        <span style={{ fontWeight:900,fontSize:18,letterSpacing:"-0.5px",color:C.white }}>MindSaathi</span>
+      </div>
+
+      {/* Links */}
+      <div style={{ display:"flex",alignItems:"center",gap:4 }}>
+        {["Guides","Support","About"].map(name=>(
+          <div key={name} style={{ position:"relative" }}>
+            <button
+              onClick={e=>{ e.stopPropagation(); setOpen(open===name?null:name); }}
+              style={{
+                background:"none",border:"none",
+                color:open===name?C.white:C.dim,
+                fontSize:14,cursor:"pointer",
+                fontFamily:"'DM Sans',sans-serif",
+                padding:"8px 14px",borderRadius:8,
+                transition:"color 0.2s",
+                display:"flex",alignItems:"center",gap:5,
+              }}
+              onMouseEnter={e=>e.currentTarget.style.color="#fff"}
+              onMouseLeave={e=>{ if(open!==name) e.currentTarget.style.color=C.dim; }}
+            >
+              {name}
+              <span style={{ fontSize:8,opacity:0.55,display:"inline-block",transition:"transform 0.2s",transform:open===name?"rotate(180deg)":"rotate(0deg)" }}>▼</span>
+            </button>
+            {open===name && <Dropdown name={name} />}
+          </div>
+        ))}
+        <button onClick={()=>setView("login")} style={{
+          background:C.lime,border:"none",color:"#080808",
+          fontWeight:700,fontSize:14,padding:"9px 20px",
+          borderRadius:50,cursor:"pointer",marginLeft:8,
+          fontFamily:"'DM Sans',sans-serif",
+          boxShadow:`0 0 20px ${C.lime}44`,transition:"all 0.2s",
+        }}
+          onMouseEnter={e=>{e.currentTarget.style.background="#d4ff40";e.currentTarget.style.boxShadow=`0 0 36px ${C.lime}77`;}}
+          onMouseLeave={e=>{e.currentTarget.style.background=C.lime;e.currentTarget.style.boxShadow=`0 0 20px ${C.lime}44`;}}
+        >Start Free Assessment</button>
+      </div>
+    </nav>,
+    document.body
+  );
+}
+
+/* ── App cards ───────────────────────────────────────────── */
+const APP_CARDS = [
+  { id:"speech",   label:"Speech Check",   note:"pace, pauses and articulation", bg:"#8B3131", accent:"#F6BCBC", tilt:-4, tx:-10, ty: 7 },
+  { id:"memory",   label:"Memory Recall",  note:"short and delayed memory",      bg:"#2C4D93", accent:"#B6CCFF", tilt: 2, tx: -1, ty:-4 },
+  { id:"reaction", label:"Reaction Test",  note:"response timing consistency",    bg:"#26664F", accent:"#A9E4CA", tilt: 5, tx: 10, ty: 6 },
+  { id:"progress", label:"Progress View",  note:"weekly cognitive movement",      bg:"#5A4A97", accent:"#D1C5FF", tilt:-3, tx: -8, ty:-6 },
+  { id:"stroop",   label:"Clinician Desk", note:"review and triage panel",        bg:"#865B2A", accent:"#FFD8AB", tilt: 1, tx:  0, ty: 4 },
+  { id:"results",  label:"Risk Summary",   note:"consolidated report card",       bg:"#1F6A70", accent:"#A9E6EB", tilt: 4, tx:  8, ty:-5 },
+];
+
+function AppCard({ card, mx, my, onClick }) {
+  const [hov,setHov]=useState(false);
+  const px   = (mx-0.5)*card.tx*1.3;
+  const py   = (my-0.5)*card.ty*1.3;
+  const tf = hov
+    ? "scale(1.06) translateY(-6px) rotate(0deg)"
+    : `rotate(${card.tilt}deg) translate(${px}px,${py}px)`;
+
+  return (
+    <div onClick={onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} style={{
+      width:"100%",height:210,
+      background:card.bg,
+      border:"1px solid rgba(255,255,255,0.20)",
+      borderRadius:24,
+      display:"flex",flexDirection:"column",alignItems:"flex-start",justifyContent:"space-between",
+      padding:"18px 16px 16px",
+      cursor:"pointer",position:"relative",overflow:"hidden",
+      transform:tf,
+      transition:hov
+        ? "transform 0.18s cubic-bezier(0.34,1.56,0.64,1),box-shadow 0.2s,border-color 0.2s"
+        : "transform 0.55s cubic-bezier(0.25,0.46,0.45,0.94),box-shadow 0.4s",
+      boxShadow:hov
+        ? `0 30px 68px rgba(0,0,0,0.60),0 0 0 1px ${card.accent}66`
+        : "0 18px 46px rgba(0,0,0,0.48)",
+      borderColor:hov ? `${card.accent}88` : "rgba(255,255,255,0.20)",
+      willChange:"transform",
+    }}>
+      <div style={{ position:"absolute",inset:0,background:"linear-gradient(120deg,rgba(255,255,255,0.20) -30%,rgba(255,255,255,0.00) 38%,rgba(255,255,255,0.22) 82%,rgba(255,255,255,0.00) 110%)",mixBlendMode:"soft-light",animation:"card-sheen 8.5s ease-in-out infinite",pointerEvents:"none" }} />
+      <div style={{ position:"absolute",top:0,left:0,right:0,height:2,background:card.accent,pointerEvents:"none" }} />
+      <div style={{ position:"absolute",bottom:0,left:0,height:3,width:"56%",background:card.accent,animation:"card-scan 4.2s ease-in-out infinite",pointerEvents:"none" }} />
+      <div style={{ position:"absolute",top:14,right:14,width:9,height:9,borderRadius:"50%",background:card.accent,boxShadow:`0 0 0 0 ${card.accent}55`,animation:"card-pulse 2.8s ease-out infinite",pointerEvents:"none" }} />
+
+      <div style={{
+        minWidth:42,height:24,borderRadius:999,
+        display:"flex",alignItems:"center",justifyContent:"center",
+        background:"rgba(0,0,0,0.20)",border:"1px solid rgba(255,255,255,0.24)",
+        color:"#FFFFFF",fontSize:20,fontWeight:700,letterSpacing:1.1,padding:"0 10px",
+        fontFamily:"'DM Sans',sans-serif",
+      }}>{card.id.toUpperCase()}</div>
+
+      <div style={{ position:"relative",zIndex:2 }}>
+        <div style={{ fontFamily:"'DM Sans',sans-serif",fontWeight:800,fontSize:20,color:"#FFFFFF",letterSpacing:0.1,marginBottom:4 }}>
+          {card.label}
+        </div>
+        <div style={{ fontFamily:"'DM Sans',sans-serif",fontWeight:500,fontSize:16,color:"rgba(255,255,255,0.84)",lineHeight:1.5,maxWidth:180 }}>
+          {card.note}
+        </div>
+      </div>
+    </div>
+  );
+}
+function Counter({ to, suffix="" }) {
+  const [val,setVal]=useState(0);
+  const ref=useRef(null);
+  const fired=useRef(false);
+  useEffect(()=>{
+    const obs=new IntersectionObserver(([e])=>{
+      if(e.isIntersecting&&!fired.current){
+        fired.current=true;
+        let s=0; const step=Math.ceil(to/40);
+        const t=setInterval(()=>{ s=Math.min(s+step,to); setVal(s); if(s>=to) clearInterval(t); },30);
+      }
+    });
+    if(ref.current) obs.observe(ref.current);
+    return ()=>obs.disconnect();
+  },[to]);
+  return <span ref={ref}>{val}{suffix}</span>;
+}
+
+/* ── FloatBtn ────────────────────────────────────────────── */
+function FloatBtn({ children, lime, onClick }) {
+  const [hov,setHov]=useState(false);
+  return (
+    <button onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} onClick={onClick} style={{
+      background:lime?(hov?"#d4ff40":C.lime):(hov?"rgba(255,255,255,0.10)":"rgba(255,255,255,0.06)"),
+      border:lime?"none":"1px solid rgba(255,255,255,0.15)",
+      color:lime?"#080808":C.offWhite,
+      fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:15,
+      padding:"13px 28px",borderRadius:50,cursor:"pointer",
+      boxShadow:lime?`0 0 ${hov?"40px":"22px"} ${C.lime}${hov?"70":"44"}`:"none",
+      transition:"all 0.22s ease",
+      transform:hov?"translateY(-2px)":"none",
+    }}>{children}</button>
+  );
+}
+
+/* ── GlowCard ────────────────────────────────────────────── */
+function GlowCard({ children, style={}, glowAlpha="22" }) {
+  return (
+    <div style={{
+      background:"rgba(10,12,10,0.90)",
+      border:"1px solid rgba(255,255,255,0.09)",
+      borderRadius:24,
+      backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)",
+      boxShadow:`0 24px 80px rgba(0,0,0,0.60),0 0 60px ${C.lime}10,inset 0 1px 0 rgba(255,255,255,0.07)`,
+      overflow:"hidden",position:"relative",
+      ...style,
+    }}>
+      <div style={{ position:"absolute",top:0,left:"8%",right:"8%",height:1,background:"linear-gradient(90deg,transparent,rgba(255,255,255,0.09),transparent)",pointerEvents:"none" }} />
+      <div style={{ position:"absolute",bottom:0,right:0,width:"65%",height:"60%",background:`radial-gradient(ellipse 80% 80% at 90% 110%,${C.lime}${glowAlpha} 0%,transparent 70%)`,pointerEvents:"none" }} />
+      {children}
+    </div>
+  );
+}
+
+/* ── Service mini-card ───────────────────────────────────── */
+function SvcCard({ icon, title, desc, accent }) {
+  const [hov,setHov]=useState(false);
+  return (
+    <div onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} style={{
+      background:hov?`${accent}10`:"rgba(14,16,12,0.80)",
+      border:`1px solid ${hov?accent:"rgba(255,255,255,0.08)"}`,
+      borderRadius:16,padding:"20px 22px",
+      backdropFilter:"blur(14px)",
+      transition:"all 0.26s ease",
+      transform:hov?"translateY(-3px)":"none",
+      boxShadow:hov?`0 16px 48px rgba(0,0,0,0.45),0 0 28px ${accent}18`:"0 4px 20px rgba(0,0,0,0.25)",
+      cursor:"pointer",position:"relative",overflow:"hidden",
+    }}>
+      <div style={{ position:"absolute",bottom:0,right:0,width:"55%",height:"50%",background:`radial-gradient(ellipse 80% 80% at 100% 100%,${accent}18 0%,transparent 70%)`,pointerEvents:"none" }} />
+      <div style={{ fontSize:28,marginBottom:10 }}>{icon}</div>
+      <div style={{ fontWeight:900,fontSize:14,color:C.white,marginBottom:5,letterSpacing:"-0.2px" }}>{title}</div>
+      <div style={{ fontSize:12,color:C.dim,lineHeight:1.6 }}>{desc}</div>
+      {hov&&<div style={{ position:"absolute",bottom:0,left:0,right:0,height:2,background:`linear-gradient(90deg,transparent,${accent},transparent)` }} />}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════
+   MAIN COMPONENT
+════════════════════════════════════════════════════════ */
+export default function LandingPage({ setView }) {
+  const [mouse,setMouse]           = useState({x:0.5,y:0.5});
+  const [showMore,setShowMore]     = useState(false);
+  const [mounted,setMounted]       = useState(false);
+  const [showDemo,setShowDemo]     = useState(false);
+  const [navOpen,setNavOpen]       = useState(null);
+  const moreRef = useRef(null);
+
+  // Smoothed mouse for parallax
+  const smooth = useRef({x:0.5,y:0.5});
+  const rafId  = useRef(null);
+
+  useEffect(()=>{
+    setTimeout(()=>setMounted(true),80);
+
+    const s=document.createElement("style");
+    s.id="lp-styles";
+    s.innerHTML=`
+      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700;9..40,900&display=swap');
+      @keyframes pulse-dot   {0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:.6}}
+      @keyframes float-up    {0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+      @keyframes ghost-drift {0%,100%{opacity:.028}50%{opacity:.055}}
+      @keyframes card-in     {from{opacity:0;transform:translateY(40px) scale(.92)}to{opacity:1;transform:translateY(0) scale(1)}}
+      @keyframes more-in     {from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+      @keyframes dd-in       {from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+      @keyframes card-sheen  {0%{transform:translateX(-16%) translateY(0)}50%{transform:translateX(6%) translateY(-3%)}100%{transform:translateX(-16%) translateY(0)}}
+      @keyframes card-pulse  {0%{box-shadow:0 0 0 0 rgba(255,255,255,0.45)}70%{box-shadow:0 0 0 10px rgba(255,255,255,0)}100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}}
+      @keyframes card-scan   {0%{transform:translateX(-62%)}50%{transform:translateX(82%)}100%{transform:translateX(-62%)}}
+      html,body{scroll-behavior:smooth}
+      *{box-sizing:border-box}
+      ::-webkit-scrollbar{width:4px}
+      ::-webkit-scrollbar-track{background:#080808}
+      ::-webkit-scrollbar-thumb{background:rgba(200,241,53,0.28);border-radius:2px}
+    `;
+    if(!document.getElementById("lp-styles")) document.head.appendChild(s);
+
+    // Close nav dropdown on outside click
+    const closeNav=()=>setNavOpen(null);
+    document.addEventListener("click",closeNav);
+
+    return ()=>{
+      const el=document.getElementById("lp-styles"); if(el) el.remove();
+      document.removeEventListener("click",closeNav);
+      if(rafId.current) cancelAnimationFrame(rafId.current);
+    };
+  },[]);
+
+  // Smooth lerp mouse
+  const [smoothMouse,setSmoothMouse]=useState({x:0.5,y:0.5});
+  useEffect(()=>{
+    function loop(){
+      smooth.current.x += (mouse.x - smooth.current.x)*0.07;
+      smooth.current.y += (mouse.y - smooth.current.y)*0.07;
+      setSmoothMouse({x:smooth.current.x, y:smooth.current.y});
+      rafId.current=requestAnimationFrame(loop);
+    }
+    rafId.current=requestAnimationFrame(loop);
+    return ()=>cancelAnimationFrame(rafId.current);
+  },[mouse]);
+
+  const handleMouseMove = e => setMouse({x:e.clientX/window.innerWidth,y:e.clientY/window.innerHeight});
+
+  const handleMore = ()=>{
+    setShowMore(true);
+    setTimeout(()=>moreRef.current?.scrollIntoView({behavior:"smooth",block:"start"}),80);
+  };
+  const handleClose = ()=>{
+    setShowMore(false);
+    window.scrollTo({top:0,behavior:"smooth"});
+  };
+
+  return (
+    /*
+      ROOT DIV: absolutely no transform, no perspective, no will-change.
+      This is critical — ANY CSS transform on an ancestor breaks position:fixed.
+      The navbar is rendered via createPortal directly onto document.body,
+      completely bypassing this tree.
+    */
+    <div
+      onMouseMove={handleMouseMove}
+      style={{ background:C.bg,color:C.white,minHeight:"100vh",fontFamily:"'DM Sans',sans-serif",overflowX:"hidden" }}
+    >
+      <GridBg />
+
+      {/* Navbar via Portal — always fixed to viewport, nothing can break it */}
+      <NavPortal setView={setView} open={navOpen} setOpen={setNavOpen} />
+
+      {/* Demo Video Modal */}
+      {showDemo && (
+        <div
+          onClick={() => setShowDemo(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 99999,
+            background: "rgba(0,0,0,0.88)", backdropFilter: "blur(12px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: "100%", maxWidth: 860,
+              borderRadius: 20, overflow: "hidden",
+              border: "1px solid rgba(200,241,53,0.2)",
+              boxShadow: "0 40px 120px rgba(0,0,0,0.9)",
+              background: "#080808",
+            }}
+          >
+            {/* Modal header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 22px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.lime, animation: "pulse-dot 2s infinite" }} />
+                <span style={{ fontFamily: "'DM Sans',sans-serif", fontWeight: 700, color: C.lime, fontSize: 13, letterSpacing: 1, textTransform: "uppercase" }}>MindSaathi Demo</span>
+              </div>
+              <button
+                onClick={() => setShowDemo(false)}
+                style={{ background: "rgba(255,255,255,0.08)", border: "none", color: "#fff", width: 30, height: 30, borderRadius: "50%", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}
+              >✕</button>
+            </div>
+            {/* Video — centered */}
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", background: "#000", aspectRatio: "16/9" }}>
+              <iframe
+                width="100%"
+                height="100%"
+                src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                title="MindSaathi Demo"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                style={{ display: "block", width: "100%", aspectRatio: "16/9" }}
+              />
+            </div>
+            <div style={{ padding: "14px 22px", textAlign: "center" }}>
+              <p style={{ color: "#555", fontSize: 12 }}>Replace the YouTube URL in the source code with your actual demo video ID.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── HERO ── */}
+      <section style={{
+        minHeight:"100vh",display:"flex",flexDirection:"column",
+        alignItems:"center",justifyContent:"center",
+        paddingTop:80,paddingBottom:40,
+        position:"relative",overflow:"hidden",
+      }}>
+        {/* Ghost text */}
+        <div style={{
+          position:"absolute",fontWeight:900,
+          fontSize:"clamp(80px,14vw,200px)",color:"rgba(255,255,255,0.028)",
+          letterSpacing:"-6px",userSelect:"none",pointerEvents:"none",
+          top:"50%",left:"50%",transform:"translate(-50%,-50%)",
+          animation:"ghost-drift 8s ease-in-out infinite",whiteSpace:"nowrap",
+          fontFamily:"'DM Sans',sans-serif",zIndex:0,
+        }}>NEUROAID</div>
+
+        {/* Ambient orbs */}
+        <div style={{ position:"absolute",top:"10%",left:"15%",width:400,height:400,borderRadius:"50%",background:`radial-gradient(circle,${C.lime}07 0%,transparent 70%)`,pointerEvents:"none",animation:"float-up 10s ease-in-out infinite" }} />
+        <div style={{ position:"absolute",bottom:"10%",right:"10%",width:350,height:350,borderRadius:"50%",background:"radial-gradient(circle,rgba(100,80,255,0.06) 0%,transparent 70%)",pointerEvents:"none",animation:"float-up 8s ease-in-out infinite 2s" }} />
+
+        {/* ── HEADLINE ── */}
+        <div style={{
+          opacity:mounted?1:0,transform:mounted?"none":"translateY(20px)",
+          transition:"all 0.8s ease 0.05s",
+          zIndex:2,position:"relative",
+          textAlign:"center",marginBottom:12,
+        }}>
+          {/* Eyebrow pill */}
+          <div style={{
+            display:"inline-flex",alignItems:"center",gap:8,
+            background:"rgba(200,241,53,0.10)",border:`1px solid ${C.lime}33`,
+            borderRadius:99,padding:"6px 16px",marginBottom:20,
+            fontSize:11,fontWeight:700,color:C.lime,letterSpacing:1.5,textTransform:"uppercase",
+          }}>
+            <span style={{ width:5,height:5,borderRadius:"50%",background:C.lime,display:"inline-block",animation:"pulse-dot 2s infinite" }} />
+            Cognitive AI Platform
+          </div>
+          {/* Big hero headline */}
+          <h1 style={{
+            fontFamily:"'DM Sans',sans-serif",fontWeight:900,
+            fontSize:"clamp(32px,4.5vw,66px)",lineHeight:1.05,
+            letterSpacing:"-2.5px",color:C.white,margin:"0 0 14px",
+          }}>
+            Experience cognitive health<br/>
+            like never before<br/>
+            <span style={{ color:C.lime }}>with MindSaathi.</span>
+          </h1>
+          {/* Sub */}
+          <p style={{
+            color:C.dim,fontSize:16,lineHeight:1.65,
+            maxWidth:480,margin:"0 auto 32px",
+          }}>
+            Access all 6 cognitive screening tools, all in one secure place.
+          </p>
+          {/* CTA row */}
+          <div style={{ display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",marginBottom:44 }}>
+            <button onClick={()=>setView("login")} style={{
+              background:C.lime,border:"none",color:"#080808",
+              fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:15,
+              padding:"13px 28px",borderRadius:50,cursor:"pointer",
+              boxShadow:`0 0 24px ${C.lime}55`,transition:"all 0.22s",
+            }}
+              onMouseEnter={e=>{e.currentTarget.style.background="#d4ff40";e.currentTarget.style.transform="translateY(-2px)";}}
+              onMouseLeave={e=>{e.currentTarget.style.background=C.lime;e.currentTarget.style.transform="none";}}
+            >Start Free Assessment →</button>
+            <button style={{
+              background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",
+              color:C.offWhite,fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:15,
+              padding:"13px 28px",borderRadius:50,cursor:"pointer",
+              backdropFilter:"blur(12px)",transition:"all 0.22s",
+            }}
+              onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.10)";e.currentTarget.style.transform="translateY(-2px)";}}
+              onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.06)";e.currentTarget.style.transform="none";}}
+              onClick={()=>setShowDemo(true)}
+            >Watch Demo ▶</button>
+          </div>
+        </div>
+
+        {/* ── APP CARD GRID ── */}
+        <div style={{
+          display:"grid",
+          gridTemplateColumns:"repeat(3,minmax(0,1fr))",
+          gap:20,
+          width:"min(92vw,900px)",
+          opacity:mounted?1:0,transition:"opacity 0.5s ease 0.3s",
+          position:"relative",zIndex:2,alignItems:"stretch",
+        }}>
+          {APP_CARDS.map((card,i)=>(
+            <div key={card.id} style={{ animation:mounted?`card-in 0.7s cubic-bezier(.34,1.56,.64,1) ${0.2+i*0.08}s both`:"none" }}>
+              <AppCard card={card} mx={smoothMouse.x} my={smoothMouse.y} onClick={()=>setView("login")} />
+            </div>
+          ))}
+        </div>
+
+        {/* More / hint */}
+        <div style={{
+          marginTop:36,position:"relative",zIndex:2,
+          opacity:mounted?1:0,transform:mounted?"none":"translateY(12px)",
+          transition:"all 0.7s ease 0.55s",
+        }}>
+          {!showMore ? (
+            <button onClick={handleMore} style={{
+              background:"rgba(18,20,16,0.88)",
+              border:"1px solid rgba(255,255,255,0.14)",
+              color:C.offWhite,
+              fontFamily:"'DM Sans',sans-serif",fontWeight:600,fontSize:14,
+              padding:"12px 32px",borderRadius:50,cursor:"pointer",
+              backdropFilter:"blur(20px)",
+              display:"flex",alignItems:"center",gap:10,
+              boxShadow:"0 8px 36px rgba(0,0,0,0.5)",
+              transition:"all 0.22s ease",
+            }}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor=`${C.lime}55`;e.currentTarget.style.color=C.white;e.currentTarget.style.boxShadow=`0 8px 48px rgba(0,0,0,0.6),0 0 28px ${C.lime}14`;}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.14)";e.currentTarget.style.color=C.offWhite;e.currentTarget.style.boxShadow="0 8px 36px rgba(0,0,0,0.5)";}}
+            >
+              <span style={{ fontSize:15 }}>↓</span> More
+            </button>
+          ) : (
+            <div style={{ display:"flex",alignItems:"center",gap:8,color:"#444",fontSize:13 }}>
+              <span style={{ width:40,height:1,background:`linear-gradient(90deg,transparent,${C.lime}44)`,display:"inline-block" }} />
+              Scroll down to explore
+              <span style={{ width:40,height:1,background:`linear-gradient(90deg,${C.lime}44,transparent)`,display:"inline-block" }} />
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ══ MORE CONTENT ══ */}
+      {showMore && (
+        <div ref={moreRef} style={{ animation:"more-in 0.55s cubic-bezier(.34,1.2,.64,1) both" }}>
+
+          {/* ── STATS BAR ── */}
+          <section style={{ borderTop:`1px solid rgba(255,255,255,0.07)`,borderBottom:`1px solid rgba(255,255,255,0.07)`,padding:"52px 60px",position:"relative" }}>
+            <div style={{ position:"absolute",top:0,left:"15%",right:"15%",height:1,background:`linear-gradient(90deg,transparent,${C.lime}44,transparent)` }} />
+            <div style={{ maxWidth:1000,margin:"0 auto",display:"flex",justifyContent:"space-around",gap:24,flexWrap:"wrap" }}>
+              {[
+                {val:10, suffix:"+",label:"Patients screened"},
+                {val:3, suffix:"",label:"Risk levels (Low | Moderate | High)"},
+                {val:8,  suffix:" min",label:"Avg Assessment Time"},
+                {val:5,  suffix:"",label:"Cognitive Tests"},
+              ].map(s=>(
+                <div key={s.label} style={{ textAlign:"center" }}>
+                  <div style={{ fontWeight:900,fontSize:52,color:C.lime,lineHeight:1,letterSpacing:"-2px" }}>
+                    <Counter to={s.val} suffix={s.suffix} />
+                  </div>
+                  <div style={{ fontSize:12,color:C.dim,marginTop:8,fontWeight:600,letterSpacing:"0.8px",textTransform:"uppercase" }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* ── HERO TEXT + FLOATING STAT CARDS ── */}
+          <section style={{ padding:"80px 60px" }}>
+            <div style={{ maxWidth:1100,margin:"0 auto",display:"flex",gap:60,alignItems:"center",flexWrap:"wrap" }}>
+              <div style={{ flex:1,minWidth:280 }}>
+                <div style={{ display:"inline-flex",alignItems:"center",gap:8,background:`rgba(200,241,53,0.10)`,border:`1px solid ${C.lime}33`,borderRadius:99,padding:"5px 14px",marginBottom:20,fontSize:11,fontWeight:700,color:C.lime,letterSpacing:1.5,textTransform:"uppercase" }}>
+                  <span style={{ width:5,height:5,borderRadius:"50%",background:C.lime,display:"inline-block",animation:"pulse-dot 2s infinite" }} />
+                  Cognitive AI Platform
+                </div>
+                <h2 style={{ fontFamily:"'DM Sans',sans-serif",fontWeight:900,fontSize:"clamp(36px,5vw,68px)",lineHeight:1.06,letterSpacing:"-2.5px",color:C.white,margin:"0 0 20px" }}>
+                  We help you<br/>
+                  <span style={{ color:C.lime }}>understand</span> &<br/>
+                  protect your brain.
+                </h2>
+                <p style={{ color:C.dim,fontSize:16,lineHeight:1.7,maxWidth:460,marginBottom:32 }}>
+                  AI-powered cognitive screening for speech, memory, and reaction — all in one platform.
+                </p>
+                <div style={{ display:"flex",gap:12,flexWrap:"wrap" }}>
+                  <FloatBtn lime onClick={()=>setView("login")}>Start Free Assessment →</FloatBtn>
+                  <FloatBtn onClick={()=>setShowDemo(true)}>Watch Demo ▶</FloatBtn>
+                </div>
+              </div>
+              {/* Floating stat cards */}
+              <div style={{ display:"flex",flexDirection:"column",gap:12 }}>
+                {[
+                  {label:"Cognitive Score",val:"74",    sub:"Low Risk",color:C.lime,   anim:"float-up 6s ease-in-out infinite"},
+                  {label:"Speech Rate",   val:"142 wpm",sub:"Normal",  color:"#60a5fa",anim:"float-up 8s ease-in-out infinite 1s"},
+                  {label:"Reaction Time", val:"284ms",  sub:"On trend",color:"#f59e0b",anim:"float-up 7s ease-in-out infinite 0.5s"},
+                ].map(s=>(
+                  <div key={s.label} style={{
+                    background:"rgba(12,14,10,0.92)",border:"1px solid rgba(255,255,255,0.10)",
+                    borderRadius:16,padding:"14px 18px",
+                    backdropFilter:"blur(24px)",
+                    boxShadow:"0 20px 60px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.08)",
+                    animation:s.anim,minWidth:175,position:"relative",overflow:"hidden",
+                  }}>
+                    <div style={{ position:"absolute",top:0,left:"10%",right:"10%",height:1,background:`linear-gradient(90deg,transparent,${s.color}44,transparent)` }} />
+                    <div style={{ position:"absolute",bottom:0,right:0,width:"50%",height:"50%",background:`radial-gradient(ellipse 80% 80% at 100% 100%,${s.color}18 0%,transparent 70%)`,pointerEvents:"none" }} />
+                    <div style={{ fontSize:10,color:C.dim,marginBottom:4,fontWeight:600,letterSpacing:1,textTransform:"uppercase" }}>{s.label}</div>
+                    <div style={{ fontWeight:900,fontSize:22,color:C.white,letterSpacing:"-0.5px" }}>{s.val}</div>
+                    <div style={{ fontSize:10,color:s.color,marginTop:3,display:"flex",alignItems:"center",gap:4 }}>
+                      <span style={{ width:5,height:5,borderRadius:"50%",background:s.color,display:"inline-block",animation:"pulse-dot 2s infinite" }} />
+                      {s.sub}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* ═══ CARD 1 — EXPERIENCE COGNITIVE HEALTH / CTA ════ */}
+          <section style={{ padding:"0 60px 48px" }}>
+            <div style={{ maxWidth:1100,margin:"0 auto" }}>
+              <GlowCard style={{ padding:"64px 56px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:48,flexWrap:"wrap" }} glowAlpha="30">
+                <div style={{ position:"relative",zIndex:2,maxWidth:520 }}>
+                  <div style={{ display:"inline-flex",alignItems:"center",gap:8,background:`rgba(200,241,53,0.10)`,border:`1px solid ${C.lime}33`,borderRadius:99,padding:"5px 14px",marginBottom:20,fontSize:11,fontWeight:700,color:C.lime,letterSpacing:1.5,textTransform:"uppercase" }}>
+                    <span style={{ width:5,height:5,borderRadius:"50%",background:C.lime,display:"inline-block",animation:"pulse-dot 2s infinite" }} />
+                    Why MindSaathi
+                  </div>
+                  <h2 style={{ fontFamily:"'DM Sans',sans-serif",fontWeight:900,fontSize:"clamp(26px,3.2vw,50px)",letterSpacing:"-1.5px",lineHeight:1.08,color:C.white,marginBottom:16 }}>
+                    Experience cognitive health<br/>
+                    like never before<br/>
+                    <span style={{ color:C.lime }}>with MindSaathi.</span>
+                  </h2>
+                  <p style={{ color:C.dim,fontSize:15,lineHeight:1.75,maxWidth:420 }}>
+                    AI-powered screening that's fast, accurate, and doctor-verified — all from your browser. No appointments, no waiting rooms.
+                  </p>
+                  {/* Feature pills */}
+                  <div style={{ display:"flex",gap:10,marginTop:24,flexWrap:"wrap" }}>
+                    {["✓ Real-Time Scoring","✓ 8 min avg","✓ Doctor-Review Ready","✓ HIPAA Safe"].map(f=>(
+                      <div key={f} style={{ background:"rgba(200,241,53,0.08)",border:`1px solid ${C.lime}22`,borderRadius:99,padding:"5px 14px",fontSize:12,fontWeight:600,color:C.lime }}>{f}</div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display:"flex",flexDirection:"column",gap:14,alignItems:"flex-start",position:"relative",zIndex:2 }}>
+                  <FloatBtn lime onClick={()=>setView("login")}>⬡ Start Free Assessment</FloatBtn>
+                  <FloatBtn>Learn More →</FloatBtn>
+                  <div style={{ display:"flex",gap:10,marginTop:6 }}>
+                    {["🌐","📱","💻"].map(e=>(
+                      <div key={e} style={{ width:38,height:38,borderRadius:"50%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.10)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16 }}>{e}</div>
+                    ))}
+                  </div>
+                  <div style={{ color:C.dim,fontSize:12 }}>Available on web, iOS & Android</div>
+                </div>
+              </GlowCard>
+            </div>
+          </section>
+
+          {/* ═══ CARD 2 — 6 COGNITIVE TESTS ════════════════════ */}
+          <section style={{ padding:"0 60px 60px" }}>
+            <div style={{ maxWidth:1100,margin:"0 auto" }}>
+              <GlowCard style={{ padding:"48px 52px" }}>
+                <div style={{ position:"relative",zIndex:2 }}>
+                  <div style={{ display:"flex",alignItems:"flex-end",justifyContent:"space-between",marginBottom:36,flexWrap:"wrap",gap:16 }}>
+                    <div>
+                      <div style={{ display:"inline-flex",alignItems:"center",gap:8,background:`rgba(200,241,53,0.10)`,border:`1px solid ${C.lime}33`,borderRadius:99,padding:"5px 14px",marginBottom:14,fontSize:11,fontWeight:700,color:C.lime,letterSpacing:1.5,textTransform:"uppercase" }}>
+                        Our Services
+                      </div>
+                      <h2 style={{ fontFamily:"'DM Sans',sans-serif",fontWeight:900,fontSize:"clamp(24px,2.8vw,42px)",letterSpacing:"-1.5px",color:C.white,lineHeight:1.1,margin:0 }}>
+                        5 cognitive tests.<br/>
+                        <span style={{ color:C.dim,fontWeight:400,fontSize:"0.75em" }}>One complete picture.</span>
+                      </h2>
+                    </div>
+                    <FloatBtn lime onClick={()=>setView("login")}>Start Assessment →</FloatBtn>
+                  </div>
+                  <div style={{ display:"grid",gridTemplateColumns:"repeat(6,minmax(0,1fr))",gap:14 }}>
+                    {[
+                      { icon:"🎙️",title:"Speech Analysis",  desc:"WPM, pauses & rhythm — vocal biomarkers of cognitive decline.",  accent:C.lime    },
+                      { icon:"🧠",title:"Memory Test",       desc:"Recall + delayed recall. Latency, order & intrusion errors.",     accent:"#60a5fa" },
+                      { icon:"⚡",title:"Reaction Time",     desc:"Attention via response drift, misses & speed across 30 targets.", accent:"#f59e0b" },
+                      { icon:"🎨",title:"Stroop Test",       desc:"Color-word interference — gold-standard executive function.",     accent:"#a78bfa" },
+                      { icon:"🥁",title:"Motor Tap",         desc:"10-second tapping measures rhythmic motor control.",               accent:"#fb923c" },
+                      
+                    ].map((s, i) => (
+                      <div
+                        key={s.title}
+                        style={{ gridColumn: i < 3 ? "span 2" : i === 3 ? "2 / span 2" : "4 / span 2" }}
+                      >
+                        <SvcCard {...s} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </GlowCard>
+            </div>
+          </section>
+
+          {/* ── FOOTER ── */}
+          <footer style={{
+            borderTop:`1px solid rgba(255,255,255,0.07)`,
+            padding:"36px 60px",
+            display:"flex",justifyContent:"space-between",alignItems:"center",gap:20,flexWrap:"wrap",
+          }}>
+            <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+              <div style={{ width:32,height:32,borderRadius:9,background:`linear-gradient(135deg,${C.lime},${C.limeDim})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:14,color:"#080808" }}>N</div>
+              <span style={{ fontWeight:900,fontSize:17,letterSpacing:"-0.5px" }}>MindSaathi</span>
+            </div>
+
+            <button onClick={handleClose} style={{
+              background:"rgba(255,255,255,0.05)",
+              border:"1px solid rgba(255,255,255,0.14)",
+              color:C.offWhite,fontFamily:"'DM Sans',sans-serif",fontWeight:600,fontSize:13,
+              padding:"10px 24px",borderRadius:50,cursor:"pointer",
+              display:"flex",alignItems:"center",gap:8,
+              backdropFilter:"blur(12px)",transition:"all 0.22s",
+            }}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor=`${C.lime}55`;e.currentTarget.style.color=C.white;}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.14)";e.currentTarget.style.color=C.offWhite;}}
+            >↑ Close</button>
+
+            <div style={{ display:"flex",alignItems:"center",gap:20 }}>
+              <div style={{ display:"flex",gap:4 }}>
+                {["Privacy","Terms","Contact"].map(l=>(
+                  <button key={l} style={{ background:"none",border:"none",color:C.dim,fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",padding:"4px 10px",transition:"color 0.2s" }}
+                    onMouseEnter={e=>e.target.style.color=C.lime}
+                    onMouseLeave={e=>e.target.style.color=C.dim}
+                  >{l}</button>
+                ))}
+              </div>
+              <button onClick={()=>setView("login")} style={{
+                background:C.lime,border:"none",color:"#0a0a0a",
+                fontWeight:700,fontSize:14,padding:"10px 22px",
+                borderRadius:40,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",
+                display:"flex",alignItems:"center",gap:8,
+                boxShadow:`0 0 24px ${C.lime}55`,transition:"all 0.22s",
+              }}
+                onMouseEnter={e=>{e.currentTarget.style.background="#d4ff40";e.currentTarget.style.boxShadow=`0 0 40px ${C.lime}88`;}}
+                onMouseLeave={e=>{e.currentTarget.style.background=C.lime;e.currentTarget.style.boxShadow=`0 0 24px ${C.lime}55`;}}
+              >
+                Let's Connect
+                <span style={{ width:22,height:22,borderRadius:"50%",background:"rgba(0,0,0,0.20)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>›</span>
+              </button>
+            </div>
+          </footer>
+
+        </div>
+      )}
+    </div>
+  );
+}
+
+

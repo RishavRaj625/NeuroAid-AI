@@ -1,27 +1,39 @@
-// Firebase configuration for NeuroAid
-// Values are loaded from frontend/.env (VITE_ prefix required for Vite)
-// See .env.example for the full list of variables needed.
+// Firebase configuration for MindSaathi
+// Requires: npm install firebase
+// Values loaded from frontend/.env (VITE_ prefix required for Vite)
 
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getAnalytics } from "firebase/analytics"; // ✅ Missing import
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app); // ✅ Now valid
+let app = null;
+let auth = null;
+let db = null;
 
-export const auth = getAuth(app);
-export const db   = getFirestore(app);
+// Only initialize if Firebase config is present
+const hasConfig = firebaseConfig.apiKey && firebaseConfig.projectId &&
+  !firebaseConfig.apiKey.includes("your_");
+
+if (hasConfig) {
+  try {
+    app  = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db   = getFirestore(app);
+  } catch (e) {
+    console.warn("Firebase init failed:", e.message);
+  }
+}
+
+export { auth, db };
 export default app;
+
 

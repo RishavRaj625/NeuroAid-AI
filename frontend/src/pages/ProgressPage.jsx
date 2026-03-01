@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { T } from "../utils/theme";
 import { DarkCard, Btn } from "../components/RiskDashboard";
-import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
-import { db } from "../firebase";
+import { getMyResults } from "../services/api";
+import { useAssessment } from "../context/AssessmentContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Progress Page — Longitudinal Tracking
+// Ported from Firebase to V4 JSON API (getMyResults)
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Domain scores from backend are 0–100 where HIGHER = healthier.
@@ -70,7 +71,6 @@ function Sparkline({ data, color, height = 60, width = 200 }) {
   );
 }
 
-// ── Trend Badge ───────────────────────────────────────────────────────────────
 function TrendBadge({ data }) {
   if (!data || data.length < 2) return <span style={{ fontSize: 11, color: "rgba(240,236,227,0.3)" }}>—</span>;
   const diff  = data[data.length - 1] - data[0];
@@ -78,25 +78,25 @@ function TrendBadge({ data }) {
   const arrow = diff > 2 ? "↑" : diff < -2 ? "↓" : "→";
   const label = diff > 2 ? `+${Math.round(diff)} pts` : diff < -2 ? `${Math.round(diff)} pts` : "Stable";
   return (
-    <span style={{ fontSize: 11, fontWeight: 700, color, padding: "3px 10px", borderRadius: 20, background: `${color}12`, border: `1px solid ${color}20` }}>
+    <span style={{ fontSize: 11, fontWeight: 700, color, padding: "3px 10px", borderRadius: 20,
+      background: `${color}12`, border: `1px solid ${color}20` }}>
       {arrow} {label}
     </span>
   );
 }
 
-// ── Domain Track Card ──────────────────────────────────────────────────────────
 function DomainTrack({ label, icon, data, labels, color }) {
   const latest = data.length ? data[data.length - 1] : null;
   const tier   = scoreTier(latest ?? 0);
-  const avg    = data.length
-    ? Math.round(data.reduce((a, b) => a + b, 0) / data.length)
-    : 0;
+  const avg    = data.length ? Math.round(data.reduce((a, b) => a + b, 0) / data.length) : 0;
 
   return (
-    <div style={{ background: "#141414", borderRadius: 16, padding: "22px 22px", border: "1px solid rgba(255,255,255,0.06)" }}>
+    <div style={{ background: "#141414", borderRadius: 16, padding: "22px 22px",
+      border: "1px solid rgba(255,255,255,0.06)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 38, height: 38, borderRadius: 10, background: `${color}12`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{icon}</div>
+          <div style={{ width: 38, height: 38, borderRadius: 10, background: `${color}12`,
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{icon}</div>
           <div>
             <div style={{ fontWeight: 700, color: "#f0ece3", fontSize: 14 }}>{label}</div>
             <div style={{ fontSize: 11, color: tier.color, marginTop: 2, fontWeight: 600 }}>{tier.label}</div>
@@ -108,7 +108,8 @@ function DomainTrack({ label, icon, data, labels, color }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 14 }}>
         <div>
           <div style={{ fontSize: 11, color: "rgba(240,236,227,0.3)", marginBottom: 4 }}>Latest</div>
-          <div style={{ fontFamily: "'Instrument Serif',serif", fontSize: 32, color: latest != null ? color : "rgba(240,236,227,0.2)", lineHeight: 1 }}>
+          <div style={{ fontFamily: "'Instrument Serif',serif", fontSize: 32,
+            color: latest != null ? color : "rgba(240,236,227,0.2)", lineHeight: 1 }}>
             {latest != null ? latest : "—"}
           </div>
         </div>
@@ -130,18 +131,20 @@ function DomainTrack({ label, icon, data, labels, color }) {
   );
 }
 
-// ── History Table ─────────────────────────────────────────────────────────────
 function HistoryTable({ history }) {
   if (!history.length) return null;
   return (
-    <div style={{ background: "#141414", borderRadius: 18, padding: 24, border: "1px solid rgba(255,255,255,0.06)" }}>
+    <div style={{ background: "#141414", borderRadius: 18, padding: 24,
+      border: "1px solid rgba(255,255,255,0.06)" }}>
       <div style={{ fontWeight: 700, color: "#f0ece3", fontSize: 15, marginBottom: 20 }}>Assessment History</div>
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr>
               {["Date", "Overall", "Speech", "Memory", "Reaction", "Executive", "Motor"].map(h => (
-                <th key={h} style={{ textAlign: "left", padding: "8px 12px", fontSize: 10, color: "rgba(240,236,227,0.3)", textTransform: "uppercase", letterSpacing: 0.8, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>{h}</th>
+                <th key={h} style={{ textAlign: "left", padding: "8px 12px", fontSize: 10,
+                  color: "rgba(240,236,227,0.3)", textTransform: "uppercase", letterSpacing: 0.8,
+                  borderBottom: "1px solid rgba(255,255,255,0.06)" }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -149,16 +152,13 @@ function HistoryTable({ history }) {
             {[...history].reverse().map((a, i) => {
               const overall     = entryOverall(a);
               const overallTier = scoreTier(overall);
-              const date        = new Date(a.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+              // Support both timestamp and createdAt fields
+              const rawDate = a.createdAt || a.timestamp;
+              const date    = rawDate
+                ? new Date(rawDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                : "—";
 
-              // Domain scores — treat null/undefined as "—", NOT as 0
-              const domains = [
-                a.speech_score,
-                a.memory_score,
-                a.reaction_score,
-                a.executive_score,
-                a.motor_score,
-              ];
+              const domains = [a.speech_score, a.memory_score, a.reaction_score, a.executive_score, a.motor_score];
 
               return (
                 <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
@@ -186,7 +186,9 @@ function HistoryTable({ history }) {
           </tbody>
         </table>
       </div>
-      <div style={{ marginTop: 16, padding: "12px 14px", borderRadius: 10, background: "rgba(255,255,255,0.02)", fontSize: 11, color: "rgba(240,236,227,0.3)", lineHeight: 1.6 }}>
+      <div style={{ marginTop: 16, padding: "12px 14px", borderRadius: 10,
+        background: "rgba(255,255,255,0.02)", fontSize: 11,
+        color: "rgba(240,236,227,0.3)", lineHeight: 1.6 }}>
         Score tiers: <span style={{ color: "#34d399" }}>■ 70–100 Healthy</span> · <span style={{ color: "#fbbf24" }}>■ 50–69 Typical</span> · <span style={{ color: "#f87171" }}>■ 0–49 Monitor</span>.
         Variation between sessions is normal. Scores are affected by sleep, mood, and test familiarity.
       </div>
@@ -195,43 +197,49 @@ function HistoryTable({ history }) {
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-export default function ProgressPage({ user, setPage }) {
+export default function ProgressPage({ setPage }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [err,     setErr]     = useState(null);
+  const { savedResults, loadHistory } = useAssessment();
 
   useEffect(() => {
-    if (!user?.uid || user.uid === "guest") return;
     setLoading(true);
-    getDocs(query(
-      collection(db, "assessments"),
-      where("uid", "==", user.uid),
-      orderBy("createdAt", "asc"),
-    )).then(snap => {
-      setHistory(snap.docs.map(d => d.data()));
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, [user?.uid]);
+    Promise.all([
+      getMyResults().catch(() => []),
+      loadHistory().catch(() => []),
+    ]).then(([backendResults, fbResults]) => {
+      // Merge: prefer backend, supplement with Firebase
+      const merged = backendResults?.length > 0 ? backendResults
+        : fbResults?.length > 0 ? fbResults
+        : savedResults || [];
+      setHistory(merged);
+    }).catch(e => setErr(e.message))
+      .finally(() => setLoading(false));
+  }, []);
 
   const hasData = history.length > 0;
 
   const labels = hasData
-    ? history.map(h => { const d = new Date(h.createdAt); return `${d.getMonth() + 1}/${d.getDate()}`; })
+    ? history.map(h => {
+        const raw = h.createdAt || h.timestamp;
+        if (!raw) return "—";
+        const d = new Date(raw);
+        return `${d.getMonth() + 1}/${d.getDate()}`;
+      })
     : [];
 
-  // Domain series — domainScore() handles null gracefully, shows 0 if explicitly 0
   const speechData   = hasData ? history.map(h => domainScore(h.speech_score))    : [];
   const memoryData   = hasData ? history.map(h => domainScore(h.memory_score))    : [];
   const reactionData = hasData ? history.map(h => domainScore(h.reaction_score))  : [];
   const execData     = hasData ? history.map(h => domainScore(h.executive_score)) : [];
   const motorData    = hasData ? history.map(h => domainScore(h.motor_score))     : [];
-
-  // Overall wellness — prefer composite_risk_score, else domain average
-  const overallData = hasData ? history.map(entryOverall) : [];
+  const overallData  = hasData ? history.map(entryOverall) : [];
 
   const latestOverall = overallData.length ? overallData[overallData.length - 1] : null;
   const latestTier    = scoreTier(latestOverall ?? 0);
 
-  // Latest composite risk (for info display)
-  const latestComposite = hasData && history[history.length - 1].composite_risk_score != null
+  const latestComposite = hasData && history[history.length - 1]?.composite_risk_score != null
     ? Math.round(history[history.length - 1].composite_risk_score)
     : null;
 
@@ -248,10 +256,12 @@ export default function ProgressPage({ user, setPage }) {
 
       {/* ── Header ── */}
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 11, color: "rgba(240,236,227,0.35)", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 10 }}>
+        <div style={{ fontSize: 11, color: "rgba(240,236,227,0.35)", letterSpacing: 1.2,
+          textTransform: "uppercase", marginBottom: 10 }}>
           Longitudinal Tracking · Cognitive Wellness
         </div>
-        <h1 style={{ fontFamily: "'Instrument Serif',serif", fontSize: 34, color: "#f0ece3", letterSpacing: -1, marginBottom: 8, fontWeight: 400 }}>Progress</h1>
+        <h1 style={{ fontFamily: "'Instrument Serif',serif", fontSize: 34, color: "#f0ece3",
+          letterSpacing: -1, marginBottom: 8, fontWeight: 400 }}>Progress</h1>
         <p style={{ color: "rgba(240,236,227,0.45)", fontSize: 14, lineHeight: 1.6, maxWidth: 480 }}>
           {hasData
             ? `${history.length} assessment${history.length > 1 ? "s" : ""} recorded. Tracking trends helps identify meaningful changes over time.`
@@ -265,19 +275,30 @@ export default function ProgressPage({ user, setPage }) {
         </div>
       )}
 
+      {err && (
+        <div style={{ background: "rgba(232,64,64,0.08)", border: "1px solid rgba(232,64,64,0.2)",
+          borderRadius: 12, padding: "14px 18px", marginBottom: 20, color: "#ff7070", fontSize: 13 }}>
+          ⚠️ {err}
+        </div>
+      )}
+
       {/* ── No data state ── */}
       {!loading && !hasData && (
-        <div style={{ background: "#141414", borderRadius: 20, padding: "60px 40px", textAlign: "center", border: "1px solid rgba(255,255,255,0.06)", marginBottom: 24 }}>
+        <div style={{ background: "#141414", borderRadius: 20, padding: "60px 40px",
+          textAlign: "center", border: "1px solid rgba(255,255,255,0.06)", marginBottom: 24 }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>📈</div>
-          <div style={{ fontFamily: "'Instrument Serif',serif", fontSize: 24, color: "#f0ece3", marginBottom: 10 }}>No Data Yet</div>
-          <p style={{ color: "rgba(240,236,227,0.45)", fontSize: 14, lineHeight: 1.7, maxWidth: 340, margin: "0 auto 24px" }}>
+          <div style={{ fontFamily: "'Instrument Serif',serif", fontSize: 24, color: "#f0ece3", marginBottom: 10 }}>
+            No Data Yet
+          </div>
+          <p style={{ color: "rgba(240,236,227,0.45)", fontSize: 14, lineHeight: 1.7,
+            maxWidth: 340, margin: "0 auto 24px" }}>
             Complete your first cognitive assessment to start building your wellness timeline.
           </p>
           {setPage && (
-            <button
-              onClick={() => setPage("assessments")}
-              style={{ padding: "12px 28px", borderRadius: 12, background: "#e84040", border: "none", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}
-            >
+            <button onClick={() => setPage("assessments")}
+              style={{ padding: "12px 28px", borderRadius: 12, background: "#e84040",
+                border: "none", color: "#fff", fontWeight: 700, fontSize: 14,
+                cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
               Start Assessment →
             </button>
           )}
@@ -287,19 +308,24 @@ export default function ProgressPage({ user, setPage }) {
       {!loading && hasData && (
         <>
           {/* ── Overall summary ── */}
-          <div style={{ background: "linear-gradient(135deg, #141414, #111)", borderRadius: 20, padding: "28px 32px", marginBottom: 20, border: `1px solid ${latestTier.color}18` }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+          <div style={{ background: "linear-gradient(135deg, #141414, #111)", borderRadius: 20,
+            padding: "28px 32px", marginBottom: 20, border: `1px solid ${latestTier.color}18` }}>
+            <div style={{ display: "flex", justifyContent: "space-between",
+              alignItems: "flex-start", marginBottom: 20 }}>
               <div>
-                <div style={{ fontSize: 11, color: "rgba(240,236,227,0.35)", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 8 }}>Overall Wellness Score</div>
+                <div style={{ fontSize: 11, color: "rgba(240,236,227,0.35)", letterSpacing: 0.8,
+                  textTransform: "uppercase", marginBottom: 8 }}>Overall Wellness Score</div>
                 <div style={{ display: "flex", alignItems: "flex-end", gap: 10 }}>
-                  <span style={{ fontFamily: "'Instrument Serif',serif", fontSize: 64, color: latestTier.color, lineHeight: 1 }}>
+                  <span style={{ fontFamily: "'Instrument Serif',serif", fontSize: 64,
+                    color: latestTier.color, lineHeight: 1 }}>
                     {latestOverall ?? "—"}
                   </span>
                   <span style={{ color: "rgba(240,236,227,0.3)", fontSize: 18, paddingBottom: 8 }}>/100</span>
                   <TrendBadge data={overallData} />
                 </div>
-                <div style={{ fontSize: 13, color: latestTier.color, fontWeight: 600, marginTop: 6 }}>{latestTier.label}</div>
-                {/* Show raw composite risk for transparency */}
+                <div style={{ fontSize: 13, color: latestTier.color, fontWeight: 600, marginTop: 6 }}>
+                  {latestTier.label}
+                </div>
                 {latestComposite != null && (
                   <div style={{ fontSize: 11, color: "rgba(240,236,227,0.3)", marginTop: 4 }}>
                     Composite risk score: {latestComposite}/100 (lower = better)
@@ -321,14 +347,17 @@ export default function ProgressPage({ user, setPage }) {
           </div>
 
           {/* ── Framing note ── */}
-          <div style={{ background: "rgba(96,165,250,0.04)", borderRadius: 14, border: "1px solid rgba(96,165,250,0.1)", padding: "13px 18px", marginBottom: 24, fontSize: 12, color: "rgba(240,236,227,0.5)", lineHeight: 1.65 }}>
+          <div style={{ background: "rgba(96,165,250,0.04)", borderRadius: 14,
+            border: "1px solid rgba(96,165,250,0.1)", padding: "13px 18px", marginBottom: 24,
+            fontSize: 12, color: "rgba(240,236,227,0.5)", lineHeight: 1.65 }}>
             💡 <strong style={{ color: "rgba(240,236,227,0.7)" }}>About score variation:</strong> It's completely normal for scores to fluctuate between sessions.
             Sleep, stress, time of day, and familiarity with the tests all significantly affect results.
             Focus on <em>long-term trends</em> rather than individual session scores.
           </div>
 
           {/* ── Domain grid ── */}
-          <div style={{ fontSize: 11, color: "rgba(240,236,227,0.35)", letterSpacing: 1, textTransform: "uppercase", marginBottom: 14 }}>Domain Trends</div>
+          <div style={{ fontSize: 11, color: "rgba(240,236,227,0.35)", letterSpacing: 1,
+            textTransform: "uppercase", marginBottom: 14 }}>Domain Trends</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 20 }}>
             {domains.slice(0, 3).map(d => <DomainTrack key={d.label} {...d} labels={labels} />)}
           </div>
@@ -337,16 +366,24 @@ export default function ProgressPage({ user, setPage }) {
           </div>
 
           {/* ── Score guide ── */}
-          <div style={{ background: "#141414", borderRadius: 16, padding: "20px 24px", marginBottom: 20, border: "1px solid rgba(255,255,255,0.06)" }}>
-            <div style={{ fontWeight: 700, color: "#f0ece3", fontSize: 13, marginBottom: 14 }}>How to read your scores</div>
+          <div style={{ background: "#141414", borderRadius: 16, padding: "20px 24px",
+            marginBottom: 20, border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div style={{ fontWeight: 700, color: "#f0ece3", fontSize: 13, marginBottom: 14 }}>
+              How to read your scores
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
               {[
-                { range: "70–100", label: "Healthy Range",      color: "#34d399", desc: "Performance within expected norms for your age group." },
-                { range: "50–69", label: "Within Variation",    color: "#fbbf24", desc: "Some variability detected. Often reflects test conditions, fatigue, or first-time testing." },
-                { range: "0–49",  label: "Worth Monitoring",    color: "#f87171", desc: "Below typical ranges. Consider retesting and consulting a doctor if persistent." },
+                { range: "70–100", label: "Healthy Range", color: "#34d399",
+                  desc: "Performance within expected norms for your age group." },
+                { range: "50–69", label: "Within Variation", color: "#fbbf24",
+                  desc: "Some variability detected. Often reflects test conditions, fatigue, or first-time testing." },
+                { range: "0–49",  label: "Worth Monitoring", color: "#f87171",
+                  desc: "Below typical ranges. Consider retesting and consulting a doctor if persistent." },
               ].map(s => (
-                <div key={s.range} style={{ padding: "14px 16px", borderRadius: 12, background: `${s.color}08`, border: `1px solid ${s.color}18` }}>
-                  <div style={{ fontFamily: "'Instrument Serif',serif", fontSize: 22, color: s.color, marginBottom: 4 }}>{s.range}</div>
+                <div key={s.range} style={{ padding: "14px 16px", borderRadius: 12,
+                  background: `${s.color}08`, border: `1px solid ${s.color}18` }}>
+                  <div style={{ fontFamily: "'Instrument Serif',serif", fontSize: 22,
+                    color: s.color, marginBottom: 4 }}>{s.range}</div>
                   <div style={{ fontWeight: 700, color: "#f0ece3", fontSize: 12, marginBottom: 6 }}>{s.label}</div>
                   <div style={{ fontSize: 11, color: "rgba(240,236,227,0.45)", lineHeight: 1.55 }}>{s.desc}</div>
                 </div>
@@ -362,16 +399,22 @@ export default function ProgressPage({ user, setPage }) {
           <HistoryTable history={history} />
 
           {/* ── Retake CTA ── */}
-          <div style={{ marginTop: 24, padding: "24px 28px", background: "#141414", borderRadius: 16, border: "1px solid rgba(232,64,64,0.15)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ marginTop: 24, padding: "24px 28px", background: "#141414", borderRadius: 16,
+            border: "1px solid rgba(232,64,64,0.15)", display: "flex",
+            alignItems: "center", justifyContent: "space-between" }}>
             <div>
-              <div style={{ fontWeight: 700, color: "#f0ece3", fontSize: 15, marginBottom: 4 }}>Ready for your next assessment?</div>
-              <div style={{ fontSize: 13, color: "rgba(240,236,227,0.45)" }}>Retake monthly for the most meaningful trend data.</div>
+              <div style={{ fontWeight: 700, color: "#f0ece3", fontSize: 15, marginBottom: 4 }}>
+                Ready for your next assessment?
+              </div>
+              <div style={{ fontSize: 13, color: "rgba(240,236,227,0.45)" }}>
+                Retake monthly for the most meaningful trend data.
+              </div>
             </div>
             {setPage && (
-              <button
-                onClick={() => setPage("assessments")}
-                style={{ padding: "12px 24px", borderRadius: 12, background: "#e84040", border: "none", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}
-              >
+              <button onClick={() => setPage("assessments")}
+                style={{ padding: "12px 24px", borderRadius: 12, background: "#e84040",
+                  border: "none", color: "#fff", fontWeight: 700, fontSize: 14,
+                  cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
                 Start Assessment →
               </button>
             )}

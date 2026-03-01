@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-// ── Simple form state hook ────────────────────────────────────────────────────
+// ── Simple form state hook ───────────────
 export function useFormState(initial = {}) {
   const [values, setValues] = useState(initial);
   const [errors, setErrors] = useState({});
